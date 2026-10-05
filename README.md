@@ -13,7 +13,7 @@ The model is a small multinomial logistic regression on 19 hand-crafted spectral
 
 ```bash
 pip install -r requirements.txt
-python -m rainrainmic.synth --out data     # demo only: synthetic audio
+python -m rainmic.synth --out data     # demo only: synthetic audio
 python -m rainmic.train --data data --out models
 python -m rainmic.predict some_clip.wav --model models/model.json
 pytest -q
