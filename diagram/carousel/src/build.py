@@ -15,7 +15,6 @@ from rainsense.data import clips, load_mono_16k  # noqa: E402
 BRAND = "rainsense"
 N = 11
 metrics = json.loads((REPO / "models" / "metrics.json").read_text())
-analysis = json.loads((SCRATCH / "analysis.json").read_text())
 parity = [float(x) for x in (REPO / "tests" / "fixtures" / "parity_features.txt").read_text().split()]
 DATA = SCRATCH / "data_esc50"
 
@@ -44,9 +43,6 @@ def pct(x):
     return f"{round(x * 100)}%"
 
 
-# cover accuracy from analysis.json, the same held-out split and model as slides 4 and 11
-_cm = analysis["clip_median"]
-clip_acc = (_cm["rain_recall"][0] * _cm["rain_recall"][1] + _cm["no_rain_recall"][0] * _cm["no_rain_recall"][1]) / (_cm["rain_recall"][1] + _cm["no_rain_recall"][1])
 
 
 slides = []
@@ -65,7 +61,7 @@ slides.append(f'''
     <dl class="stats-col">
       <div><dt>5 s</dt><dd>of audio per reading</dd></div>
       <div><dt>0 bytes</dt><dd>of audio uploaded</dd></div>
-      <div><dt>{pct(clip_acc)}</dt><dd>of held-out 5 s clips classified right</dd></div>
+      <div><dt>{pct(metrics["clip_accuracy"])}</dt><dd>of 5 s clips classified right, cross-validated</dd></div>
     </dl>
     <div class="phone">
       <div class="screen">
@@ -132,7 +128,7 @@ slides.append(f'''
 </section>''')
 
 # 4 median ----------------------------------------------------------
-ir = analysis["interruption_detect_rate"]
+ir = metrics["street_noise_2s_detected"]
 win_bars = [(0.90, "rain"), (0.08, "horn"), (0.86, "rain"), (0.11, "siren"), (0.88, "rain")]
 med = sorted(v for v, _ in win_bars)[2]
 strip = "".join(f'<div class="w{" noise" if l in ("horn", "siren") else ""}"><i style="height:{v * 300:.0f}px"></i><span class="mono">{l}</span></div>' for v, l in win_bars)
@@ -150,10 +146,10 @@ slides.append(f'''
   <p class="lede">Every 5 s reading is five 1 s windows, and the answer is their median. Short bursts of noise get outvoted.</p>
   <div class="strip"><div class="median" style="bottom:{med * 300 + 46:.0f}px"><span class="mono">median</span></div>{strip}</div>
   <div class="chart">
-    <div class="chart-h"><b>Rain clips still detected, 2 s of street noise inside</b><span class="mono">held-out, 12 clips</span></div>
-    {hbar("Median of 5 windows", ir["median_2s"][0], 12, True)}
-    {hbar("Mean of 5 windows", ir["mean_2s"][0], 12)}
-    {hbar("One 1 s check on the noise", ir["single_window_at_interruption"][0], 12)}
+    <div class="chart-h"><b>Rain clips still detected, 2 s of street noise inside</b><span class="mono">cross-validated, {ir["median"][1]} clips</span></div>
+    {hbar("Median of 5 windows", *ir["median"], True)}
+    {hbar("Mean of 5 windows", *ir["mean"])}
+    {hbar("One 1 s check on the noise", *ir["noise_window"])}
   </div>
 </section>''')
 
@@ -189,6 +185,10 @@ raw_pts = "".join(f'<circle cx="{pt(p, o)[0]:.0f}" cy="{pt(p, o)[1]:.0f}" r="11"
 cal_pts = "".join(f'<rect x="{pt(p, o)[0] - 10:.0f}" y="{pt(p, o)[1] - 10:.0f}" width="20" height="20" class="cal"/>'
                   for p, o, n in cal)
 r7, c7 = raw[3], cal[3]
+# label rows for the two callouts, pushed apart when the points sit close (each label block is ~60 px tall)
+yc, yr = pt(*c7[:2])[1], pt(*r7[:2])[1]
+gap = max(0, 64 - abs(yr - yc)) / 2
+yc, yr = (yc - gap, yr + gap) if yc <= yr else (yc + gap, yr - gap)
 ticks = "".join(f'<text x="{X0 + t * S:.0f}" y="{Y0 + 40}" class="tick" text-anchor="middle">{int(t * 100)}%</text>'
                 f'<text x="{X0 - 18}" y="{Y0 - t * S + 8:.0f}" class="tick" text-anchor="end">{int(t * 100)}%</text>'
                 f'<line x1="{X0}" y1="{Y0 - t * S:.0f}" x2="{X0 + S}" y2="{Y0 - t * S:.0f}" class="grid"/>' for t in (0, .25, .5, .75, 1))
@@ -202,18 +202,18 @@ slides.append(f'''
     <line x1="{X0}" y1="{Y0}" x2="{X0 + S}" y2="{Y0 - S}" class="diag"/>
     <text x="{X0 + S - 6}" y="{Y0 - S - 16}" class="lbl" text-anchor="end">perfect</text>
     {raw_pts}{cal_pts}
-    <line x1="{pt(*r7[:2])[0] + 14:.0f}" y1="{pt(*r7[:2])[1]:.0f}" x2="{X0 + S + 40}" y2="{pt(*r7[:2])[1]:.0f}" class="lead"/>
-    <text x="{X0 + S + 52}" y="{pt(*r7[:2])[1] - 6:.0f}" class="lbl">before: said {pct(r7[0])}</text>
-    <text x="{X0 + S + 52}" y="{pt(*r7[:2])[1] + 26:.0f}" class="lbl muted">was rain {pct(r7[1])}</text>
-    <line x1="{pt(*c7[:2])[0] + 14:.0f}" y1="{pt(*c7[:2])[1]:.0f}" x2="{X0 + S + 40}" y2="{pt(*c7[:2])[1]:.0f}" class="lead acc"/>
-    <text x="{X0 + S + 52}" y="{pt(*c7[:2])[1] - 6:.0f}" class="lbl acc">after: said {pct(c7[0])}</text>
-    <text x="{X0 + S + 52}" y="{pt(*c7[:2])[1] + 26:.0f}" class="lbl muted">was rain {pct(c7[1])}</text>
+    <polyline points="{pt(*r7[:2])[0] + 14:.0f},{pt(*r7[:2])[1]:.0f} {X0 + S + 20},{pt(*r7[:2])[1]:.0f} {X0 + S + 40},{yr - 14:.0f}" class="lead" fill="none"/>
+    <text x="{X0 + S + 52}" y="{yr - 6:.0f}" class="lbl">before: said {pct(r7[0])}</text>
+    <text x="{X0 + S + 52}" y="{yr + 26:.0f}" class="lbl muted">was rain {pct(r7[1])}</text>
+    <polyline points="{pt(*c7[:2])[0] + 14:.0f},{pt(*c7[:2])[1]:.0f} {X0 + S + 20},{pt(*c7[:2])[1]:.0f} {X0 + S + 40},{yc - 14:.0f}" class="lead acc" fill="none"/>
+    <text x="{X0 + S + 52}" y="{yc - 6:.0f}" class="lbl acc">after: said {pct(c7[0])}</text>
+    <text x="{X0 + S + 52}" y="{yc + 26:.0f}" class="lbl muted">was rain {pct(c7[1])}</text>
     <text x="{X0 + S / 2}" y="{Y0 + 86}" class="axis" text-anchor="middle">predicted rain probability</text>
     <text transform="translate(26 {Y0 - S / 2}) rotate(-90)" class="axis" text-anchor="middle">observed share of rain</text>
   </svg>
-  <div class="legend"><span><i class="lg-raw"></i>before</span><span><i class="lg-cal"></i>after calibration</span><span class="mono">held-out, bins of 76–578 windows</span></div>
+  <div class="legend"><span><i class="lg-raw"></i>before</span><span><i class="lg-cal"></i>after calibration</span><span class="mono">cross-validated, bins of {min(n for *_, n in cal)}–{max(n for *_, n in cal)} windows</span></div>
   <dl class="facts two">
-    <div><dt>{metrics["logloss_raw"]:.3f} → {metrics["logloss_calibrated"]:.3f}</dt><dd>held-out log-loss</dd></div>
+    <div><dt>{metrics["logloss_raw"]:.3f} → {metrics["logloss_calibrated"]:.3f}</dt><dd>cross-validated log-loss</dd></div>
     <div><dt>T = {metrics["temperature"]:.2f}</dt><dd>plus one offset per class</dd></div>
   </dl>
 </section>''')
@@ -304,14 +304,14 @@ slides.append(f'''
 </section>''')
 
 # 11 limits ---------------------------------------------------------
-names = {"sea": "Sea waves", "vacuum": "Vacuum cleaner", "toilet": "Toilet flush", "engine": "Engine", "crackling": "Crackling fire"}
-fa = [(names[k], v, n) for k, v, n in analysis["false_alarm_by_confuser_window"] if k in names][:5]
+names = {"sea_waves": "Sea waves", "vacuum_cleaner": "Vacuum cleaner", "toilet_flush": "Toilet flush", "engine": "Engine", "crackling_fire": "Crackling fire"}
+fa = [(names[k], v, n) for k, v, n in metrics["false_alarm_by_category"] if k in names][:5]
 fbars = "".join(f'<div class="hb"><span class="hb-l">{k}</span><span class="hb-t"><i style="width:{v * 100:.1f}%"></i></span><span class="hb-v mono">{pct(v)}</span></div>' for k, v, n in fa)
 slides.append(f'''
 <section class="slide inv">
   {top("limits", 11, True)}
   <h2>What it gets wrong today.</h2>
-  <p class="lede">Steady broadband noise sounds like rain to 19 spectral features. False alarms per 1 s window, held-out recordings:</p>
+  <p class="lede">Steady broadband noise sounds like rain to 19 spectral features. False alarms per 1 s window, cross-validated:</p>
   <div class="chart inv-chart">{fbars}</div>
   <h3 class="next-h mono">Next</h3>
   <ol class="next">

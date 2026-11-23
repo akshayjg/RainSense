@@ -20,7 +20,7 @@ python -m rainsense.predict some_clip.wav --model models/model.json
 pytest -q
 ```
 
-`models/model.json` is trained on ESC-50 (rain vs 20 confuser categories). On held-out source files: 87% accuracy on 5 s clips (153 of 175, only 12 of them rain; [diagram/carousel/src/analysis.json](diagram/carousel/src/analysis.json)) and 82% balanced accuracy per 1 s window ([models/metrics.json](models/metrics.json)). Weak spots: sea waves, vacuum cleaners and toilet flushes are often mistaken for rain. **ESC-50 is CC BY-NC**, so this model is for research and demos, not commercial use.
+`models/model.json` is trained on ESC-50 (rain vs 20 confuser categories). 5-fold cross-validation grouped by source file, with calibration fitted inside each training fold ([models/metrics.json](models/metrics.json)): 80% of 718 five-second clips classified right (73–89% across folds), 32 of 37 rain clips caught, 80% of non-rain clips correctly rejected. Weak spots: vacuum cleaners, sea waves and toilet flushes are often mistaken for rain. **ESC-50 is CC BY-NC**, so this model is for research and demos, not commercial use.
 
 ## How the model is built
 

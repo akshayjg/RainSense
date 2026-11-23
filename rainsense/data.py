@@ -23,18 +23,19 @@ def clips(y: np.ndarray, seconds: int = WINDOW_SECONDS):
         yield y[i:i + n]
 
 
+def list_wavs(root):
+    """root/<class_name>/*.wav in a fixed order; the list index is the group id load_clips assigns."""
+    return [w for d in sorted(p for p in Path(root).iterdir() if p.is_dir()) for w in sorted(d.glob("*.wav"))]
+
+
 def load_clips(root):
-    """root/<class_name>/*.wav -> 1 s windows, labels (str), groups (file index)"""
-    root = Path(root)
+    """root/<class_name>/*.wav -> 1 s windows, labels (str), groups (file index into list_wavs)"""
     C, labels, groups = [], [], []
-    files = 0
-    for cls_dir in sorted(p for p in root.iterdir() if p.is_dir()):
-        for wav in sorted(cls_dir.glob("*.wav")):
-            for c in clips(load_mono_16k(wav)):
-                C.append(c)
-                labels.append(cls_dir.name)
-                groups.append(files)
-            files += 1
+    for files, wav in enumerate(list_wavs(root)):
+        for c in clips(load_mono_16k(wav)):
+            C.append(c)
+            labels.append(wav.parent.name)
+            groups.append(files)
     if not C:
         raise SystemExit(f"No >= {WINDOW_SECONDS}s wav clips found under {root}")
     return C, np.array(labels), np.array(groups)

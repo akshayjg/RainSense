@@ -6,10 +6,10 @@ import numpy as np
 from scipy.optimize import minimize
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import balanced_accuracy_score, classification_report, confusion_matrix
-from sklearn.model_selection import GroupShuffleSplit
+from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.preprocessing import StandardScaler
 
-from .data import augment, load_clips
+from .data import augment, list_wavs, load_clips
 from .features import CLIP_SECONDS, FEATURE_NAMES, WINDOW_SECONDS, compute_features
 
 
@@ -58,8 +58,26 @@ def _reliability(p_rain, is_rain, w, bins=5):
             for m in (idx == b for b in range(bins)) if m.any()]
 
 
-def train(data_dir, out_dir, seed=0):
+# loud street sounds used to interrupt held-out rain clips in the noise test
+STREET = {"car_horn", "siren", "engine", "train", "footsteps", "helicopter", "airplane"}
+
+
+def _category(path):
+    """'esc50_sea_waves_1234.wav' -> 'sea_waves'; names without a <source>_<category>_<id> pattern -> 'other'."""
+    parts = Path(path).stem.split("_")
+    return "_".join(parts[1:-1]) if len(parts) >= 3 else "other"
+
+
+def _calibrate(L, yi):
+    """A temperature plus a per-class offset that minimise even-prior log-loss. Keeps the model a plain softmax."""
+    w = _balanced_weights(yi)
+    res = minimize(lambda x: _nll(_softmax(L / np.exp(x[0]) + x[1:]), yi, w), np.zeros(L.shape[1] + 1), method="L-BFGS-B")
+    return float(np.exp(res.x[0])), res.x[1:]
+
+
+def train(data_dir, out_dir, seed=0, folds=5):
     C, y, groups = load_clips(data_dir)
+    cats = np.array([_category(w) for w in list_wavs(data_dir)])[groups]
     print(f"{len(C)} windows of {WINDOW_SECONDS}s from {len(set(groups))} files, classes: {sorted(set(y))}")
     F = np.array([compute_features(c) for c in C])
     rng = np.random.default_rng(seed)
@@ -71,53 +89,79 @@ def train(data_dir, out_dir, seed=0):
         clf = LogisticRegression(max_iter=3000, class_weight="balanced").fit(scaler.transform(X), np.concatenate([y[idx], y[idx]]))
         return scaler, clf
 
-    # split by source file so windows from one recording never land in both train and test
-    tr, te = next(GroupShuffleSplit(n_splits=1, test_size=0.25, random_state=seed).split(F, y, groups))
-    scaler, clf = fit(tr)
-    raw = export(scaler, clf)
-    classes = raw["classes"]
-    yi = np.array([classes.index(c) for c in y[te]])
-    L = _logits(raw, F[te])
-    P_raw = _softmax(L)
-    pred = np.array(classes)[P_raw.argmax(axis=1)]
-    acc = float((pred == y[te]).mean())
-    print(classification_report(y[te], pred, zero_division=0))
-    print("confusion matrix (rows=true):\n", confusion_matrix(y[te], pred, labels=classes))
+    classes = sorted(set(y))  # LogisticRegression orders classes_ the same way
+    yi = np.array([classes.index(c) for c in y])
+    rain = classes.index("rain") if "rain" in classes else None
+    L_raw, P_cal = np.zeros((len(C), len(classes))), np.zeros((len(C), len(classes)))
+    clip_rows, clip_fold = [], []
+    noise = {"median": [], "mean": [], "noise_window": []}
 
-    # calibration: a temperature plus a per-class offset, fit on held-out data (even prior). Keeps the model a plain softmax.
+    # Every file is tested exactly once, never in the same fold as its own training data. Calibration is fitted on a
+    # grouped quarter of each training part, so the test fold never influences the numbers reported for it.
+    split = lambda n: StratifiedGroupKFold(n_splits=n, shuffle=True, random_state=seed)
+    for f, (tr, te) in enumerate(split(folds).split(F, y, groups)):
+        fi, ci = next(split(4).split(F[tr], y[tr], groups[tr]))
+        model = export(*fit(tr[fi]))
+        T, b = _calibrate(_logits(model, F[tr[ci]]), yi[tr[ci]])
+        L_raw[te] = _logits(model, F[te])
+        P_cal[te] = _softmax(L_raw[te] / T + b)
+        first = len(clip_rows)
+        for g in np.unique(groups[te]):  # clip = median over the 1 s windows of each 5 s chunk of a test file
+            rows = np.flatnonzero(groups == g)
+            clip_rows += [rows[s:s + CLIP_SECONDS] for s in range(0, len(rows) - CLIP_SECONDS + 1, CLIP_SECONDS)]
+        clip_fold += [f] * (len(clip_rows) - first)
+
+        # noise test: two of the five windows of a test rain clip replaced by a street sound at twice its loudness
+        street = [C[i] for i in te if cats[i] in STREET]
+        if rain is None or not street:
+            continue
+        p_rain = lambda ws: _softmax(_logits(model, np.array([compute_features(w) for w in ws])) / T + b)[:, rain]
+        for r in clip_rows[first:]:
+            if yi[r[0]] != rain:
+                continue
+            seg = [C[i] for i in r]
+            for j in (1, 3):
+                n = street[rng.integers(len(street))]
+                seg[j] = np.clip(n * 2 * np.sqrt(np.mean(seg[j] ** 2) / (np.mean(n ** 2) + 1e-12)), -1, 1)
+            P = p_rain(seg)
+            noise["median"].append(np.median(P) >= 0.5)
+            noise["mean"].append(np.mean(P) >= 0.5)
+            noise["noise_window"].append(P[1] >= 0.5)
+
+    pred = P_cal.argmax(axis=1)
+    print(classification_report(yi, pred, target_names=classes, zero_division=0))
+    print("confusion matrix (rows=true):\n", confusion_matrix(yi, pred))
+    clip_true = np.array([yi[r[0]] for r in clip_rows])
+    clip_pred = np.array([np.median(P_cal[r], axis=0).argmax() for r in clip_rows])
+    ok, clip_fold = clip_true == clip_pred, np.array(clip_fold)
     w = _balanced_weights(yi)
-    k = len(classes)
-    res = minimize(lambda x: _nll(_softmax(L / np.exp(x[0]) + x[1:]), yi, w), np.zeros(k + 1), method="L-BFGS-B")
-    T, bias = float(np.exp(res.x[0])), res.x[1:]
-    P_cal = _softmax(L / T + bias)
-    print(f"calibration: T={T:.2f}, held-out log-loss {_nll(P_raw, yi, w):.3f} -> {_nll(P_cal, yi, w):.3f}")
-
-    # clip-level result = median over the 1 s windows of each 5 s chunk of a held-out file
-    clip_true, clip_pred = [], []
-    for g in np.unique(groups[te]):
-        rows = np.flatnonzero(groups[te] == g)
-        for k in range(0, len(rows) - CLIP_SECONDS + 1, CLIP_SECONDS):
-            r = rows[k:k + CLIP_SECONDS]
-            clip_true.append(y[te][r[0]])
-            clip_pred.append(classes[int(np.median(P_cal[r], axis=0).argmax())])
-    clip_acc = float(np.mean(np.array(clip_true) == np.array(clip_pred))) if clip_true else None
-    print(f"held-out accuracy: 1 s window {acc:.3f}" + (f", {CLIP_SECONDS} s clip (median) {clip_acc:.3f}" if clip_acc is not None else ""))
-
+    acc = float((pred == yi).mean())
     metrics = {
-        "windows": len(C), "files": int(len(set(groups))), "classes": classes,
-        "heldout_window_accuracy": acc,
-        "heldout_window_balanced_accuracy": float(balanced_accuracy_score(y[te], pred)),
-        "heldout_clip_accuracy": clip_acc,
-        "temperature": T, "bias": bias.tolist(),
-        "logloss_raw": _nll(P_raw, yi, w), "logloss_calibrated": _nll(P_cal, yi, w),
+        "evaluation": f"{folds}-fold cross-validation grouped by source file; calibration fitted inside each training fold",
+        "windows": len(C), "files": int(len(set(groups))), "clips": len(clip_rows), "classes": classes,
+        "window_accuracy": acc,
+        "window_balanced_accuracy": float(balanced_accuracy_score(yi, pred)),
+        "clip_accuracy": float(ok.mean()),
+        "clip_accuracy_per_fold": [float(ok[clip_fold == f].mean()) for f in range(folds)],
+        "clip_balanced_accuracy": float(balanced_accuracy_score(clip_true, clip_pred)),
+        "clip_recall": {c: [float(ok[clip_true == i].mean()), int((clip_true == i).sum())] for i, c in enumerate(classes)},
+        "logloss_raw": _nll(_softmax(L_raw), yi, w), "logloss_calibrated": _nll(P_cal, yi, w),
     }
     if "no_rain" in classes:
-        is_rain = y[te] != "no_rain"
-        nr = classes.index("no_rain")
-        metrics["reliability_raw"] = _reliability(1 - P_raw[:, nr], is_rain, w)
-        metrics["reliability_calibrated"] = _reliability(1 - P_cal[:, nr], is_rain, w)
+        nr, m = classes.index("no_rain"), y == "no_rain"
+        metrics["reliability_raw"] = _reliability(1 - _softmax(L_raw)[:, nr], y != "no_rain", w)
+        metrics["reliability_calibrated"] = _reliability(1 - P_cal[:, nr], y != "no_rain", w)
+        metrics["false_alarm_by_category"] = sorted(
+            ((c, float(np.mean(pred[m & (cats == c)] != nr)), int(np.sum(m & (cats == c)))) for c in np.unique(cats[m])),
+            key=lambda t: -t[1])
+    if noise["median"]:
+        metrics["street_noise_2s_detected"] = {k: [float(np.mean(v)), len(v)] for k, v in noise.items()}
 
-    # refit on everything for the shipped model, keeping the held-out calibration
+    # shipped model: fit on everything; calibration fitted on the pooled out-of-fold logits
+    T, bias = _calibrate(L_raw, yi)
+    metrics |= {"temperature": T, "bias": bias.tolist()}
+    print(f"cross-validated: 1 s window {acc:.3f}, {CLIP_SECONDS} s clip (median) {ok.mean():.3f} over {len(clip_rows)} clips, "
+          f"log-loss {metrics['logloss_raw']:.3f} -> {metrics['logloss_calibrated']:.3f}")
     scaler, clf = fit(np.arange(len(C)))
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)

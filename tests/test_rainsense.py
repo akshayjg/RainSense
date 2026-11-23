@@ -33,7 +33,10 @@ def test_pipeline(tmp_path):
     model = json.load(open(tmp_path / "m" / "model.json"))
     assert len(model["coef"]) == len(model["classes"]) == 4
     assert model["temperature"] > 0
-    assert json.load(open(tmp_path / "m" / "metrics.json"))["heldout_clip_accuracy"] is not None
+    metrics = json.load(open(tmp_path / "m" / "metrics.json"))
+    assert metrics["clip_accuracy"] is not None
+    assert metrics["clips"] == 4 * 16 * 2  # every 10 s file gives two 5 s clips and is tested exactly once
+    assert len(metrics["clip_accuracy_per_fold"]) == 5
     p = predict_features(model, np.zeros(len(FEATURE_NAMES)))
     assert abs(sum(p.values()) - 1) < 1e-6
 
@@ -117,3 +120,10 @@ def test_weather_check(tmp_path):
     precip = lookup({"minutely_15": {"time": ["2026-11-21T14:00", "2026-11-21T14:30", "2026-11-21T15:00"],
                                      "precipitation": [0.4, 0.0, 0.0]}})
     assert check(tmp_path, precip) == (2, 3)   # the 15:00 "rain" recording disagrees
+
+
+def test_category_from_filename():
+    from rainsense.train import _category
+    assert _category("esc50_sea_waves_1234.wav") == "sea_waves"
+    assert _category("esc50_engine_99.wav") == "engine"
+    assert _category("20251121-101010_park.wav") == "other"
