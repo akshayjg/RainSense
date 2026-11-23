@@ -73,4 +73,4 @@ gradle -p android :rainsense:testDebugUnitTest :app:assembleDebug
 
 ## License
 
-MIT for the code. The shipped model is trained on ESC-50 (CC BY-NC 3.0).
+[CC BY-NC 4.0](LICENSE): free to use, share and adapt with credit, not for commercial use. Covers the code, the model and the docs. The shipped model is trained on ESC-50 (CC BY-NC 3.0).
