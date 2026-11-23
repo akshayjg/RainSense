@@ -1,4 +1,4 @@
-package com.example.rainsense
+package io.github.akshayjg.rainsense
 
 import android.content.Context
 import org.json.JSONArray
@@ -12,6 +12,7 @@ class RainClassifier(context: Context) {
     private val scale: DoubleArray
     private val coef: Array<DoubleArray>
     private val intercept: DoubleArray
+    private val rainThreshold: Double
 
     init {
         val text = context.assets.open("model.json").bufferedReader().use { it.readText() }
@@ -22,6 +23,7 @@ class RainClassifier(context: Context) {
         intercept = o.getJSONArray("intercept").toDoubles()
         val c = o.getJSONArray("coef")
         coef = Array(c.length()) { c.getJSONArray(it).toDoubles() }
+        rainThreshold = o.optDouble("rain_threshold", 0.5)  // older models: plain argmax
     }
 
     /** Scores each 1 s window and takes the per-class median, so one loud second can't flip the result. Same as predict.predict_clip. */
@@ -33,7 +35,7 @@ class RainClassifier(context: Context) {
         val med = DoubleArray(classes.size) { c -> median(perWindow.map { it[c] }) }
         val total = med.sum()
         val probs = classes.indices.associate { classes[it] to med[it] / total }
-        return probs.maxByOrNull { it.value }!!.key to probs
+        return pickLabel(probs, rainThreshold) to probs
     }
 
     private fun softmax(f: DoubleArray): DoubleArray {
@@ -54,4 +56,11 @@ class RainClassifier(context: Context) {
     }
 
     private fun JSONArray.toDoubles() = DoubleArray(length()) { getDouble(it) }
+}
+
+/** no_rain unless P(rain) = 1 - P(no_rain) reaches [threshold], then the likeliest rain class. Same rule as predict.label. */
+internal fun pickLabel(probs: Map<String, Double>, threshold: Double): String {
+    val noRain = probs["no_rain"] ?: return probs.maxByOrNull { it.value }!!.key
+    if (1 - noRain < threshold) return "no_rain"
+    return probs.filterKeys { it != "no_rain" }.maxByOrNull { it.value }!!.key
 }

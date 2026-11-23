@@ -1,4 +1,4 @@
-package com.example.rainsense
+package io.github.akshayjg.rainsense
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

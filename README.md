@@ -1,5 +1,10 @@
 # RainSense
 
+[![CI](https://github.com/akshayjg/RainSense/actions/workflows/ci.yml/badge.svg)](https://github.com/akshayjg/RainSense/actions/workflows/ci.yml)
+[![License: CC BY-NC 4.0](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey.svg)](LICENSE)
+
+![RainSense: phones listen for 5 s, decide on-device and report anonymously to a street-level rain map](diagram/linkedin-demo/rainsense-demo@2x.png)
+
 Detect rain from a phone microphone, on the phone, as a library any app can embed. Many phones reporting together give a street-level rain map (see [docs/OUTLINE.md](docs/OUTLINE.md)).
 
 Raindrops produce broadband, impulsive noise, mostly 1-8 kHz. This repo has:
@@ -20,14 +25,15 @@ python -m rainsense.predict some_clip.wav --model models/model.json
 pytest -q
 ```
 
-`models/model.json` is trained on ESC-50 (rain vs 20 confuser categories). 5-fold cross-validation grouped by source file, with calibration fitted inside each training fold ([models/metrics.json](models/metrics.json)): 80% of 718 five-second clips classified right (73–89% across folds), 32 of 37 rain clips caught, 80% of non-rain clips correctly rejected. Weak spots: vacuum cleaners, sea waves and toilet flushes are often mistaken for rain. **ESC-50 is CC BY-NC**, so this model is for research and demos, not commercial use.
+`models/model.json` is trained on ESC-50 (rain vs 20 confuser categories). 5-fold cross-validation grouped by source file, with calibration fitted inside each training fold ([models/metrics.json](models/metrics.json)): at the shipped rain threshold of 0.70, 91% of 718 five-second clips are classified right (86–94% across folds), 29 of 37 rain clips are caught, and 9% of non-rain clips raise a false alarm. `metrics.json` lists the trade-off at other thresholds. Weak spots: vacuum cleaners, sea waves and toilet flushes are often mistaken for rain. **ESC-50 is CC BY-NC**, so this model is for research and demos, not commercial use.
 
 ## How the model is built
 
 - **Real data.** `rainsense.datasets esc50` downloads ESC-50; `rainsense.datasets fsd50k <path>` imports a local FSD50K copy. Both write `data/rain/` and `data/no_rain/`. ESC-50 clips from one source are joined into one file, so the train/test split can't leak.
 - **Augmentation** (`data.augment`). Each training window gets one extra copy: rain mixed with a random no-rain sound at -3 to 10 dB SNR, or low-passed like a phone in a pocket, plus random gain.
 - **1 s windows + median.** The model scores 1 s windows; a 5 s clip's result is the median over its 5 windows, so a horn or a shout can't flip it.
-- **Calibration.** A temperature and per-class offset are fit on held-out data and folded into the exported weights, so `rainProb` is calibrated for an even rain/no-rain prior. The aggregator can apply the local base rate.
+- **Calibration.** A temperature and per-class offset are folded into the exported weights, so `rainProb` is calibrated for an even rain/no-rain prior. The aggregator can apply the local base rate. In evaluation, calibration is fitted inside each training fold, never on the test fold.
+- **Rain threshold.** A clip is labelled rain when `rainProb` reaches `rain_threshold` in `model.json`: the lowest threshold that keeps cross-validated false alarms at or below 10%, since many phones report per street and a false "rain" costs more than a missed one. Python (`predict.label`) and Kotlin (`pickLabel`) apply the same rule.
 - **Validation against real weather.** `python -m rainsense.weather --lat .. --lon .. data/` (or `rain_log.csv`) compares labels or predictions with Open-Meteo 15-minute precipitation (free, no key, last 92 days).
 
 ## Training on your own recordings
@@ -37,7 +43,7 @@ Put WAV files (any sample rate; resampled to 16 kHz mono) in class folders: `dat
 The demo app's **Record ...** buttons save labelled 15 s WAVs through the same mic path the detector uses, named `<time>_<place>.wav`:
 
 ```bash
-adb pull /sdcard/Android/data/com.example.rainsense.demo/files/recordings data
+adb pull /sdcard/Android/data/io.github.akshayjg.rainsense.demo/files/recordings data
 python -m rainsense.weather --lat 52.37 --lon 4.90 data     # check the labels against real weather
 ```
 
@@ -47,7 +53,7 @@ python -m rainsense.weather --lat 52.37 --lon 4.90 data     # check the labels a
 
 ```kotlin
 when (val r = RainSense.sample(context)) {          // suspend; call while the host app is in the foreground
-    is RainResult.Reading -> report(r.rainProb)      // 0..1, calibrated
+    is RainResult.Reading -> report(r.rainProb)      // 0..1, calibrated; r.label applies the rain threshold
     is RainResult.Skipped -> log(r.reason)           // e.g. "covered and dark (probably in a pocket or bag)"
 }
 ```
@@ -63,7 +69,7 @@ Build and test (Android SDK + JDK 17+; Android Studio generates the Gradle wrapp
 gradle -p android :rainsense:testDebugUnitTest :app:assembleDebug
 ```
 
-`ParityTest.kt` checks the Kotlin feature extractor against `tests/fixtures/parity_features.txt`, the same fixture the Python tests check, so the two can't drift apart silently.
+CI runs these on every push. `ParityTest.kt` checks the Kotlin feature extractor against `tests/fixtures/parity_features.txt`, the same fixture the Python tests check, so the two can't drift apart silently.
 
 ## Limitations
 

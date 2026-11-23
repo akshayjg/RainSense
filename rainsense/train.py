@@ -60,6 +60,10 @@ def _reliability(p_rain, is_rain, w, bins=5):
 
 # loud street sounds used to interrupt held-out rain clips in the noise test
 STREET = {"car_horn", "siren", "engine", "train", "footsteps", "helicopter", "airplane"}
+# The shipped rain threshold is the lowest one that keeps cross-validated clip false alarms at or below this.
+# Many phones report per street, so a false "rain" costs more than a missed one.
+MAX_FALSE_ALARM = 0.10
+THRESHOLDS = [round(t, 2) for t in np.arange(0.5, 0.96, 0.05)]
 
 
 def _category(path):
@@ -73,6 +77,16 @@ def _calibrate(L, yi):
     w = _balanced_weights(yi)
     res = minimize(lambda x: _nll(_softmax(L / np.exp(x[0]) + x[1:]), yi, w), np.zeros(L.shape[1] + 1), method="L-BFGS-B")
     return float(np.exp(res.x[0])), res.x[1:]
+
+
+def decide(P, nr, threshold):
+    """Class index per row: no_rain unless P(rain) = 1 - P(no_rain) reaches the threshold, then the likeliest rain class.
+    Same rule as predict.label and RainClassifier.pickLabel."""
+    if nr is None:
+        return P.argmax(axis=1)
+    Q = np.array(P, dtype=float)
+    Q[:, nr] = -1
+    return np.where(1 - P[:, nr] >= threshold, Q.argmax(axis=1), nr)
 
 
 def train(data_dir, out_dir, seed=0, folds=5):
@@ -124,20 +138,34 @@ def train(data_dir, out_dir, seed=0, folds=5):
                 n = street[rng.integers(len(street))]
                 seg[j] = np.clip(n * 2 * np.sqrt(np.mean(seg[j] ** 2) / (np.mean(n ** 2) + 1e-12)), -1, 1)
             P = p_rain(seg)
-            noise["median"].append(np.median(P) >= 0.5)
-            noise["mean"].append(np.mean(P) >= 0.5)
-            noise["noise_window"].append(P[1] >= 0.5)
+            noise["median"].append(np.median(P))
+            noise["mean"].append(np.mean(P))
+            noise["noise_window"].append(P[1])
 
-    pred = P_cal.argmax(axis=1)
+    nr = classes.index("no_rain") if "no_rain" in classes else None
+    clip_true = np.array([yi[r[0]] for r in clip_rows])
+    clip_P = np.array([np.median(P_cal[r], axis=0) for r in clip_rows])
+    clip_P /= clip_P.sum(axis=1, keepdims=True)  # same as predict_clip
+    threshold, points = 0.5, []
+    if nr is not None:
+        p_clip, is_rain = 1 - clip_P[:, nr], clip_true != nr
+        points = [(t, float(np.mean(p_clip[is_rain] >= t)), float(np.mean(p_clip[~is_rain] >= t))) for t in THRESHOLDS]
+        threshold = next((t for t, _, fa in points if fa <= MAX_FALSE_ALARM), THRESHOLDS[-1])
+        print("threshold  rain caught  false alarms (5 s clips)")
+        for t, rec, fa in points:
+            print(f"  {t:.2f}{'*' if t == threshold else ' '}     {rec:.2f}        {fa:.2f}")
+    pred = decide(P_cal, nr, threshold)
     print(classification_report(yi, pred, target_names=classes, zero_division=0))
     print("confusion matrix (rows=true):\n", confusion_matrix(yi, pred))
-    clip_true = np.array([yi[r[0]] for r in clip_rows])
-    clip_pred = np.array([np.median(P_cal[r], axis=0).argmax() for r in clip_rows])
+    clip_pred = decide(clip_P, nr, threshold)
     ok, clip_fold = clip_true == clip_pred, np.array(clip_fold)
     w = _balanced_weights(yi)
     acc = float((pred == yi).mean())
     metrics = {
-        "evaluation": f"{folds}-fold cross-validation grouped by source file; calibration fitted inside each training fold",
+        "evaluation": f"{folds}-fold cross-validation grouped by source file; calibration fitted inside each training fold; "
+                      f"rain threshold chosen on the cross-validated clip scores",
+        "rain_threshold": threshold,
+        "operating_points": [{"threshold": t, "rain_caught": rec, "false_alarms": fa} for t, rec, fa in points],
         "windows": len(C), "files": int(len(set(groups))), "clips": len(clip_rows), "classes": classes,
         "window_accuracy": acc,
         "window_balanced_accuracy": float(balanced_accuracy_score(yi, pred)),
@@ -155,7 +183,7 @@ def train(data_dir, out_dir, seed=0, folds=5):
             ((c, float(np.mean(pred[m & (cats == c)] != nr)), int(np.sum(m & (cats == c)))) for c in np.unique(cats[m])),
             key=lambda t: -t[1])
     if noise["median"]:
-        metrics["street_noise_2s_detected"] = {k: [float(np.mean(v)), len(v)] for k, v in noise.items()}
+        metrics["street_noise_2s_detected"] = {k: [float(np.mean(np.array(v) >= threshold)), len(v)] for k, v in noise.items()}
 
     # shipped model: fit on everything; calibration fitted on the pooled out-of-fold logits
     T, bias = _calibrate(L_raw, yi)
@@ -165,7 +193,10 @@ def train(data_dir, out_dir, seed=0, folds=5):
     scaler, clf = fit(np.arange(len(C)))
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    (out / "model.json").write_text(json.dumps(export(scaler, clf, T, bias)))
+    shipped = export(scaler, clf, T, bias)
+    if nr is not None:
+        shipped["rain_threshold"] = threshold
+    (out / "model.json").write_text(json.dumps(shipped))
     (out / "metrics.json").write_text(json.dumps(metrics, indent=2))
     print(f"saved {out / 'model.json'} and metrics.json")
     return acc

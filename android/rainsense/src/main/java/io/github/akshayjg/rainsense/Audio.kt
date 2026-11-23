@@ -1,4 +1,4 @@
-package com.example.rainsense
+package io.github.akshayjg.rainsense
 
 import android.content.Context
 import android.media.AudioFormat

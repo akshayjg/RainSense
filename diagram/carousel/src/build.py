@@ -13,7 +13,7 @@ sys.path.insert(0, str(REPO))
 from rainsense.data import clips, load_mono_16k  # noqa: E402
 
 BRAND = "rainsense"
-N = 11
+N = 10
 metrics = json.loads((REPO / "models" / "metrics.json").read_text())
 parity = [float(x) for x in (REPO / "tests" / "fixtures" / "parity_features.txt").read_text().split()]
 DATA = SCRATCH / "data_esc50"
@@ -142,8 +142,8 @@ def hbar(label, v, n, strong=False):
 slides.append(f'''
 <section class="slide">
   {top("1 s windows", 4)}
-  <h2>Two seconds of horn can't flip the answer.</h2>
-  <p class="lede">Every 5 s reading is five 1 s windows, and the answer is their median. Short bursts of noise get outvoted.</p>
+  <h2>Short bursts of noise get outvoted.</h2>
+  <p class="lede">Every 5 s reading is five 1 s windows, and the answer is their median. With two seconds of street noise inside, the median still finds the rain far more often than an average does.</p>
   <div class="strip"><div class="median" style="bottom:{med * 300 + 46:.0f}px"><span class="mono">median</span></div>{strip}</div>
   <div class="chart">
     <div class="chart-h"><b>Rain clips still detected, 2 s of street noise inside</b><span class="mono">cross-validated, {ir["median"][1]} clips</span></div>
@@ -196,7 +196,7 @@ slides.append(f'''
 <section class="slide">
   {top("calibration", 6)}
   <h2>Its confident answers hold up.</h2>
-  <p class="lede">A fitted temperature and class offset are folded into the exported weights. Confident answers now match what happened; the unsure middle still over-calls rain.</p>
+  <p class="lede">A fitted temperature and class offset are folded into the exported weights, so readings from many phones can be averaged honestly.</p>
   <svg class="rel" viewBox="0 0 904 660">
     {ticks}
     <line x1="{X0}" y1="{Y0}" x2="{X0 + S}" y2="{Y0 - S}" class="diag"/>
@@ -218,28 +218,10 @@ slides.append(f'''
   </dl>
 </section>''')
 
-# 7 weather ---------------------------------------------------------
-slots = [("14:00", 0.4, [("14:12", "rain", True)]), ("14:15", 0.0, []), ("14:30", 0.0, [("14:31", "no rain", True)]), ("14:45", 0.0, []), ("15:00", 0.0, [("15:00", "rain", False)])]
-scols = ""
-for t, mm, recs in slots:
-    rec = "".join(f'<div class="rec{"" if ok else " bad"}"><b class="mono">{rt}</b><span>{lab}</span><em>{"agrees" if ok else "disagrees"}</em></div>' for rt, lab, ok in recs)
-    scols += f'<div class="slot"><div class="mm"><i style="height:{mm * 700:.0f}px"></i><span class="mono">{mm:.1f} mm</span></div><span class="t mono">{t}</span><div class="recs">{rec}</div></div>'
+# 7 privacy ---------------------------------------------------------
 slides.append(f'''
 <section class="slide">
-  {top("weather check, example run", 7)}
-  <h2>Checked against the sky.</h2>
-  <p class="lede">Labels and predictions are compared with Open-Meteo's 15-minute precipitation where the phone was. Free, no API key, the last 92 days.</p>
-  <pre class="code term"><span class="c">$</span> python -m rainsense.weather --lat 52.37 --lon 4.90 data/
-disagrees: rain/20261121-150000_hand.wav says rain,
-           Open-Meteo 0.0 mm / 15 min
-<span class="s">2/3 agree with Open-Meteo</span></pre>
-  <div class="slots">{scols}</div>
-</section>''')
-
-# 8 privacy ---------------------------------------------------------
-slides.append(f'''
-<section class="slide">
-  {top("privacy", 8)}
+  {top("privacy", 7)}
   <h2>Audio never leaves the phone.</h2>
   <p class="lede">RainSense returns a number and drops the sound. What the host app reports is its own choice; a rain map needs only this much.</p>
   <div class="split">
@@ -261,7 +243,7 @@ slides.append(f'''
   </div>
 </section>''')
 
-# 9 map -------------------------------------------------------------
+# 8 map ---------------------------------------------------------------
 grid = [
     [8, 12, 41, 58, 47, 15, 6, None],
     [10, 38, 66, 81, 62, 33, 9, 4],
@@ -280,46 +262,43 @@ for row in grid:
             cells += f'<div class="cell{" rain" if v >= 50 else ""}" style="--v:{v / 100:.2f}">{txt}</div>'
 slides.append(f'''
 <section class="slide">
-  {top("city map, concept", 9)}
+  {top("city map, concept", 8)}
   <h2>One rain map from many phones.</h2>
   <p class="lede">Each 500 m cell pools 10 minutes of readings. Three or more, with a weighted mean over 50%, mark it as raining.</p>
   <div class="map">{cells}</div>
   <div class="legend map-legend"><span class="scale"><i></i></span><span class="mono">0–100% of phones hear rain</span><span class="nd"><i></i><span class="mono">under 3 readings</span></span><span><b class="outline"></b><span class="mono">raining</span></span></div>
 </section>''')
 
-# 10 parity ---------------------------------------------------------
+# 9 parity ----------------------------------------------------------
 prow = [("band 94–125 Hz", parity[0]), ("band 0.9–1.2 kHz", parity[8]), ("band 6.1–8 kHz", parity[15]),
         ("spectral flatness", parity[16]), ("RMS level, dB", parity[17]), ("2–8 kHz variability, dB", parity[18])]
 trs = "".join(f'<tr><td>{n}</td><td class="mono">{v:.6f}</td><td class="mono ok">within 1e-6</td></tr>' for n, v in prow)
 slides.append(f'''
 <section class="slide">
-  {top("parity", 10)}
+  {top("parity", 9)}
   <h2>Python trains it. Kotlin runs it. Same numbers.</h2>
   <p class="lede">Both sides compute the 19 features of the same generated signal and check them against one shared file.</p>
   <table class="ptable"><thead><tr><th>feature</th><th>Python</th><th>Kotlin</th></tr></thead><tbody>{trs}</tbody></table>
   <div class="results">
-    <div class="res"><span class="tag">pytest</span><code>10 passed</code></div>
-    <div class="res"><span class="tag">ParityTest.kt</span><code>1 test, 0 failures</code></div>
+    <div class="res"><span class="tag">pytest</span><code>runs in CI on every push</code></div>
+    <div class="res"><span class="tag">ParityTest.kt</span><code>runs in CI on every push</code></div>
   </div>
 </section>''')
 
-# 11 limits ---------------------------------------------------------
-names = {"sea_waves": "Sea waves", "vacuum_cleaner": "Vacuum cleaner", "toilet_flush": "Toilet flush", "engine": "Engine", "crackling_fire": "Crackling fire"}
-fa = [(names[k], v, n) for k, v, n in metrics["false_alarm_by_category"] if k in names][:5]
-fbars = "".join(f'<div class="hb"><span class="hb-l">{k}</span><span class="hb-t"><i style="width:{v * 100:.1f}%"></i></span><span class="hb-v mono">{pct(v)}</span></div>' for k, v, n in fa)
+# 10 roadmap -------------------------------------------------------
 slides.append(f'''
 <section class="slide inv">
-  {top("limits", 11, True)}
-  <h2>What it gets wrong today.</h2>
-  <p class="lede">Steady broadband noise sounds like rain to 19 spectral features. False alarms per 1 s window, cross-validated:</p>
-  <div class="chart inv-chart">{fbars}</div>
-  <h3 class="next-h mono">Next</h3>
+  {top("roadmap", 10, True)}
+  <h2>From public recordings to real streets.</h2>
+  <p class="lede">RainSense is open source. The next steps take it into the field.</p>
   <ol class="next">
-    <li>Field recordings in a hand, a pocket and under an umbrella</li>
-    <li>YAMNet against these features on those recordings</li>
-    <li>Intensity labels from a rain gauge</li>
+    <li>Field recordings from phones in hands, pockets and under umbrellas</li>
+    <li>A pretrained audio model (YAMNet) benchmarked against these features</li>
+    <li>Rain intensity, calibrated against rain gauges</li>
+    <li>A pilot inside an app people already use outdoors</li>
   </ol>
-  <p class="foot mono">Model trained on ESC-50 (CC BY-NC 3.0). Python training, Kotlin on-device library.</p>
+  <p class="cta mono">github.com/akshayjg/RainSense</p>
+  <p class="foot mono">Python training · Kotlin on-device library · trained on ESC-50 (CC BY-NC 3.0)</p>
 </section>''')
 
 CSS = (Path(__file__).parent / "slides.css").read_text()

@@ -23,6 +23,15 @@ def predict_clip(model, clip):
     return dict(zip(model["classes"], (p / p.sum()).tolist()))
 
 
+def label(model, probs):
+    """no_rain unless P(rain) = 1 - P(no_rain) reaches the model's rain_threshold, then the likeliest rain class."""
+    if "no_rain" not in probs:
+        return max(probs, key=probs.get)
+    if 1 - probs["no_rain"] < model.get("rain_threshold", 0.5):
+        return "no_rain"
+    return max((k for k in probs if k != "no_rain"), key=probs.get)
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("wav")
@@ -32,5 +41,5 @@ if __name__ == "__main__":
         model = json.load(f)
     for i, c in enumerate(clips(load_mono_16k(a.wav), CLIP_SECONDS)):
         probs = predict_clip(model, c)
-        best = max(probs, key=probs.get)
+        best = label(model, probs)
         print(f"clip {i} ({i * CLIP_SECONDS}-{(i + 1) * CLIP_SECONDS}s): {best}  " + "  ".join(f"{k}={v:.2f}" for k, v in probs.items()))

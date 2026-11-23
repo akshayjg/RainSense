@@ -1,4 +1,4 @@
-package com.example.rainsense
+package io.github.akshayjg.rainsense
 
 import android.Manifest
 import android.content.Context

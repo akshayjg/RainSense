@@ -1,5 +1,58 @@
 {
-  "evaluation": "5-fold cross-validation grouped by source file; calibration fitted inside each training fold",
+  "evaluation": "5-fold cross-validation grouped by source file; calibration fitted inside each training fold; rain threshold chosen on the cross-validated clip scores",
+  "rain_threshold": 0.7,
+  "operating_points": [
+    {
+      "threshold": 0.5,
+      "rain_caught": 0.8648648648648649,
+      "false_alarms": 0.2011747430249633
+    },
+    {
+      "threshold": 0.55,
+      "rain_caught": 0.8648648648648649,
+      "false_alarms": 0.16299559471365638
+    },
+    {
+      "threshold": 0.6,
+      "rain_caught": 0.8108108108108109,
+      "false_alarms": 0.1277533039647577
+    },
+    {
+      "threshold": 0.65,
+      "rain_caught": 0.7837837837837838,
+      "false_alarms": 0.1013215859030837
+    },
+    {
+      "threshold": 0.7,
+      "rain_caught": 0.7837837837837838,
+      "false_alarms": 0.08516886930983847
+    },
+    {
+      "threshold": 0.75,
+      "rain_caught": 0.7027027027027027,
+      "false_alarms": 0.0631424375917768
+    },
+    {
+      "threshold": 0.8,
+      "rain_caught": 0.6216216216216216,
+      "false_alarms": 0.04405286343612335
+    },
+    {
+      "threshold": 0.85,
+      "rain_caught": 0.6216216216216216,
+      "false_alarms": 0.027900146842878122
+    },
+    {
+      "threshold": 0.9,
+      "rain_caught": 0.4864864864864865,
+      "false_alarms": 0.016152716593245228
+    },
+    {
+      "threshold": 0.95,
+      "rain_caught": 0.2972972972972973,
+      "false_alarms": 0.004405286343612335
+    }
+  ],
   "windows": 3933,
   "files": 660,
   "clips": 718,
@@ -7,24 +60,24 @@
     "no_rain",
     "rain"
   ],
-  "window_accuracy": 0.7998982964658022,
-  "window_balanced_accuracy": 0.834567495298862,
-  "clip_accuracy": 0.8022284122562674,
+  "window_accuracy": 0.8967709127892194,
+  "window_balanced_accuracy": 0.8350688594441245,
+  "clip_accuracy": 0.9080779944289693,
   "clip_accuracy_per_fold": [
-    0.8888888888888888,
-    0.7448275862068966,
-    0.7342657342657343,
-    0.8041958041958042,
-    0.8391608391608392
+    0.9444444444444444,
+    0.8758620689655172,
+    0.8601398601398601,
+    0.9230769230769231,
+    0.9370629370629371
   ],
-  "clip_balanced_accuracy": 0.8318450609199508,
+  "clip_balanced_accuracy": 0.8493074572369727,
   "clip_recall": {
     "no_rain": [
-      0.7988252569750367,
+      0.9148311306901615,
       681
     ],
     "rain": [
-      0.8648648648648649,
+      0.7837837837837838,
       37
     ]
   },
@@ -87,116 +140,116 @@
   "false_alarm_by_category": [
     [
       "vacuum_cleaner",
-      0.7688442211055276,
+      0.4321608040201005,
       199
     ],
     [
-      "sea_waves",
-      0.5867346938775511,
-      196
-    ],
-    [
       "toilet_flush",
-      0.44623655913978494,
+      0.3010752688172043,
       186
     ],
     [
+      "sea_waves",
+      0.2193877551020408,
+      196
+    ],
+    [
       "engine",
-      0.3279569892473118,
+      0.14516129032258066,
       186
     ],
     [
       "crackling_fire",
-      0.2894736842105263,
+      0.1368421052631579,
       190
     ],
     [
       "insects",
-      0.2698412698412698,
+      0.08994708994708994,
       189
     ],
     [
       "helicopter",
-      0.19270833333333334,
+      0.07291666666666667,
       192
     ],
     [
-      "train",
-      0.18,
+      "crickets",
+      0.07,
       200
     ],
     [
       "airplane",
-      0.1658291457286432,
+      0.06532663316582915,
       199
     ],
     [
       "car_horn",
-      0.14893617021276595,
+      0.06382978723404255,
       141
     ],
     [
-      "siren",
-      0.11518324607329843,
-      191
-    ],
-    [
-      "crickets",
-      0.11,
-      200
-    ],
-    [
       "footsteps",
-      0.08648648648648649,
+      0.043243243243243246,
       185
     ],
     [
       "pouring_water",
-      0.07784431137724551,
+      0.041916167664670656,
       167
     ],
     [
+      "train",
+      0.04,
+      200
+    ],
+    [
       "water_drops",
-      0.07006369426751592,
+      0.03821656050955414,
       157
     ],
     [
-      "chirping_birds",
-      0.05025125628140704,
-      199
-    ],
-    [
-      "keyboard_typing",
-      0.041884816753926704,
+      "siren",
+      0.03664921465968586,
       191
     ],
     [
-      "laughing",
-      0.02976190476190476,
-      168
+      "keyboard_typing",
+      0.02617801047120419,
+      191
     ],
     [
-      "church_bells",
-      0.025,
-      200
+      "chirping_birds",
+      0.02512562814070352,
+      199
     ],
     [
       "wind",
       0.025,
       200
+    ],
+    [
+      "laughing",
+      0.023809523809523808,
+      168
+    ],
+    [
+      "church_bells",
+      0.0,
+      200
     ]
   ],
   "street_noise_2s_detected": {
     "median": [
-      0.8378378378378378,
+      0.7297297297297297,
       37
     ],
     "mean": [
-      0.8108108108108109,
+      0.1891891891891892,
       37
     ],
     "noise_window": [
-      0.24324324324324326,
+      0.08108108108108109,
       37
     ]
   },

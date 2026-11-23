@@ -1,4 +1,4 @@
-package com.example.rainsense
+package io.github.akshayjg.rainsense
 
 import kotlin.math.PI
 import kotlin.math.cos

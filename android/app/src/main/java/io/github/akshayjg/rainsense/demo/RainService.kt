@@ -1,4 +1,4 @@
-package com.example.rainsense.demo
+package io.github.akshayjg.rainsense.demo
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -8,8 +8,8 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.IBinder
 import androidx.core.app.ServiceCompat
-import com.example.rainsense.RainResult
-import com.example.rainsense.RainSense
+import io.github.akshayjg.rainsense.RainResult
+import io.github.akshayjg.rainsense.RainSense
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

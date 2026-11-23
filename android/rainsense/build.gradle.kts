@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.rainsense"
+    namespace = "io.github.akshayjg.rainsense"
     compileSdk = 34
     defaultConfig { minSdk = 26 }
     compileOptions {

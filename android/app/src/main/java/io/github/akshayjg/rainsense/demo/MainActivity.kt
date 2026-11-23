@@ -1,4 +1,4 @@
-package com.example.rainsense.demo
+package io.github.akshayjg.rainsense.demo
 
 import android.Manifest
 import android.content.Intent
@@ -18,11 +18,11 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import com.example.rainsense.FeatureExtractor
-import com.example.rainsense.RainResult
-import com.example.rainsense.RainSense
-import com.example.rainsense.recordPcm
-import com.example.rainsense.writeWav
+import io.github.akshayjg.rainsense.FeatureExtractor
+import io.github.akshayjg.rainsense.RainResult
+import io.github.akshayjg.rainsense.RainSense
+import io.github.akshayjg.rainsense.recordPcm
+import io.github.akshayjg.rainsense.writeWav
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

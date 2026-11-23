@@ -127,3 +127,11 @@ def test_category_from_filename():
     assert _category("esc50_sea_waves_1234.wav") == "sea_waves"
     assert _category("esc50_engine_99.wav") == "engine"
     assert _category("20251121-101010_park.wav") == "other"
+
+
+def test_label_uses_rain_threshold():
+    from rainsense.predict import label
+    probs = {"no_rain": 0.35, "light": 0.40, "heavy": 0.25}  # P(rain) = 0.65
+    assert label({"rain_threshold": 0.6}, probs) == "light"
+    assert label({"rain_threshold": 0.7}, probs) == "no_rain"
+    assert label({}, {"no_rain": 0.45, "rain": 0.55}) == "rain"  # older models: 0.5
