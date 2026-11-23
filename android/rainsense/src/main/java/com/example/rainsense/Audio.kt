@@ -34,7 +34,7 @@ fun recordPcm(context: Context, samples: Int): ShortArray {
     return out
 }
 
-/** Writes mono 16-bit PCM as a standard WAV file (readable by rainmic.data.load_mono_16k). */
+/** Writes mono 16-bit PCM as a standard WAV file (readable by rainsense.data.load_mono_16k). */
 fun writeWav(file: File, pcm: ShortArray, sr: Int = FeatureExtractor.SR) {
     val dataBytes = pcm.size * 2
     val buf = ByteBuffer.allocate(44 + dataBytes).order(ByteOrder.LITTLE_ENDIAN)

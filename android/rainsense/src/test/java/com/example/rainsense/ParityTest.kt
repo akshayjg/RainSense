@@ -6,11 +6,11 @@ import java.io.File
 import kotlin.math.PI
 import kotlin.math.sin
 
-/** The Kotlin extractor must match rainmic/features.py, or the shipped model silently misbehaves. */
+/** The Kotlin extractor must match rainsense/features.py, or the shipped model silently misbehaves. */
 class ParityTest {
     @Test
     fun featuresMatchPython() {
-        // same LCG noise + tones as parity_signal() in tests/test_rainmic.py
+        // same LCG noise + tones as parity_signal() in tests/test_rainsense.py
         var s = 12345L
         val sr = FeatureExtractor.SR
         val y = DoubleArray(sr) { i ->

@@ -1,4 +1,4 @@
-# Rain-mic: crowdsourced rain sensing (outline)
+# RainSense: crowdsourced rain sensing (outline)
 
 Prototype outline. Not a spec.
 
@@ -39,7 +39,7 @@ No audio ever leaves the phone.
 
 ```kotlin
 // sketch
-object Pitterpat {
+object RainSense {
     suspend fun sample(context: Context): RainReading?   // null = skipped (gated out, mic busy, silent)
 }
 data class RainReading(val rainProb: Float, val quality: Float, val timeMs: Long)
@@ -54,7 +54,7 @@ data class RainReading(val rainProb: Float, val quality: Float, val timeMs: Long
 - the clip is silent (mic in use by something else)
 - later: YAMNet says "inside, small room"
 
-**3.4 Model.** Start with the current 19-feature logistic regression. Switch to YAMNet if `rainmic.compare` shows it does better on real recordings.
+**3.4 Model.** Start with the current 19-feature logistic regression. Switch to YAMNet if `rainsense.compare` shows it does better on real recordings.
 
 **3.5 Report.** Send `{cell_id, time_bucket, rain_prob, quality}`. No audio, no user ID, location rounded to the grid cell.
 
@@ -73,7 +73,7 @@ data class RainReading(val rainProb: Float, val quality: Float, val timeMs: Long
 
 | Step | What | Done when |
 |------|------|-----------|
-| M1 | Per-clip detection: record labelled clips in real situations (hand, pocket, umbrella, roadside), run `rainmic.compare` | ≥ ~75% balanced accuracy on clips that pass the gate |
+| M1 | Per-clip detection: record labelled clips in real situations (hand, pocket, umbrella, roadside), run `rainsense.compare` | ≥ ~75% balanced accuracy on clips that pass the gate |
 | M2 | Package the detector as a library with the `sample()` API above, plus the gate | A test app can call it in one line |
 | M3 | Field test: 5–10 phones, a simple aggregator (Python + SQLite), compare to radar or the nearest weather station | The map broadly agrees with radar during real rain |
 | M4 | Pitch to a host app, using M3's results as evidence | |

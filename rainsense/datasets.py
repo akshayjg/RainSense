@@ -1,7 +1,7 @@
 """Import public labelled audio into <out>/rain/ and <out>/no_rain/ for training.
 
-  python -m rainmic.datasets esc50 --out data                      # downloads ESC-50 (~600 MB), CC BY-NC 3.0
-  python -m rainmic.datasets fsd50k /path/to/FSD50K --out data     # a local FSD50K copy, CC0 / CC-BY / CC-BY-NC per clip
+  python -m rainsense.datasets esc50 --out data                      # downloads ESC-50 (~600 MB), CC BY-NC 3.0
+  python -m rainsense.datasets fsd50k /path/to/FSD50K --out data     # a local FSD50K copy, CC0 / CC-BY / CC-BY-NC per clip
 
 Licences are non-commercial for part of this data: fine for research and a prototype, not for a commercial model.
 """

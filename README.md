@@ -1,11 +1,11 @@
-# rain-mic
+# RainSense
 
 Detect rain from a phone microphone, on the phone, as a library any app can embed. Many phones reporting together give a street-level rain map (see [docs/OUTLINE.md](docs/OUTLINE.md)).
 
 Raindrops produce broadband, impulsive noise, mostly 1-8 kHz. This repo has:
 
-- **`rainmic/`**: Python pipeline: dataset import, augmentation, training with calibration, prediction, detector comparison, and weather-based validation.
-- **`android/rainsense/`**: the embeddable Android library (**Pitterpat**). One call: `Pitterpat.sample(context)`.
+- **`rainsense/`**: Python pipeline: dataset import, augmentation, training with calibration, prediction, detector comparison, and weather-based validation.
+- **`android/rainsense/`**: the embeddable Android library (**RainSense**). One call: `RainSense.sample(context)`.
 - **`android/app/`**: a demo/test harness for the library (monitoring service, "sample now", labelled data collection).
 
 The model is a small logistic regression on 19 hand-crafted spectral features per 1 s window, exported as plain JSON (`model.json`). No TFLite, no network, no audio leaves the phone.
@@ -14,9 +14,9 @@ The model is a small logistic regression on 19 hand-crafted spectral features pe
 
 ```bash
 pip install -r requirements.txt
-python -m rainmic.datasets esc50 --out data          # real rain + 20 kinds of confusers (~600 MB download)
-python -m rainmic.train --data data --out models     # writes model.json + metrics.json
-python -m rainmic.predict some_clip.wav --model models/model.json
+python -m rainsense.datasets esc50 --out data          # real rain + 20 kinds of confusers (~600 MB download)
+python -m rainsense.train --data data --out models     # writes model.json + metrics.json
+python -m rainsense.predict some_clip.wav --model models/model.json
 pytest -q
 ```
 
@@ -24,11 +24,11 @@ pytest -q
 
 ## How the model is built
 
-- **Real data.** `rainmic.datasets esc50` downloads ESC-50; `rainmic.datasets fsd50k <path>` imports a local FSD50K copy. Both write `data/rain/` and `data/no_rain/`. ESC-50 clips from one source are joined into one file, so the train/test split can't leak.
+- **Real data.** `rainsense.datasets esc50` downloads ESC-50; `rainsense.datasets fsd50k <path>` imports a local FSD50K copy. Both write `data/rain/` and `data/no_rain/`. ESC-50 clips from one source are joined into one file, so the train/test split can't leak.
 - **Augmentation** (`data.augment`). Each training window gets one extra copy: rain mixed with a random no-rain sound at -3 to 10 dB SNR, or low-passed like a phone in a pocket, plus random gain.
 - **1 s windows + median.** The model scores 1 s windows; a 5 s clip's result is the median over its 5 windows, so a horn or a shout can't flip it.
 - **Calibration.** A temperature and per-class offset are fit on held-out data and folded into the exported weights, so `rainProb` is calibrated for an even rain/no-rain prior. The aggregator can apply the local base rate.
-- **Validation against real weather.** `python -m rainmic.weather --lat .. --lon .. data/` (or `rain_log.csv`) compares labels or predictions with Open-Meteo 15-minute precipitation (free, no key, last 92 days).
+- **Validation against real weather.** `python -m rainsense.weather --lat .. --lon .. data/` (or `rain_log.csv`) compares labels or predictions with Open-Meteo 15-minute precipitation (free, no key, last 92 days).
 
 ## Training on your own recordings
 
@@ -37,16 +37,16 @@ Put WAV files (any sample rate; resampled to 16 kHz mono) in class folders: `dat
 The demo app's **Record ...** buttons save labelled 15 s WAVs through the same mic path the detector uses, named `<time>_<place>.wav`:
 
 ```bash
-adb pull /sdcard/Android/data/com.example.rainmic/files/recordings data
-python -m rainmic.weather --lat 52.37 --lon 4.90 data     # check the labels against real weather
+adb pull /sdcard/Android/data/com.example.rainsense.demo/files/recordings data
+python -m rainsense.weather --lat 52.37 --lon 4.90 data     # check the labels against real weather
 ```
 
-`python -m rainmic.compare --data data` compares the hand-crafted model with YAMNet (`pip install -r requirements-yamnet.txt`, Python 3.11/3.12), broken down by phone placement.
+`python -m rainsense.compare --data data` compares the hand-crafted model with YAMNet (`pip install -r requirements-yamnet.txt`, Python 3.11/3.12), broken down by phone placement.
 
 ## Android library
 
 ```kotlin
-when (val r = Pitterpat.sample(context)) {          // suspend; call while the host app is in the foreground
+when (val r = RainSense.sample(context)) {          // suspend; call while the host app is in the foreground
     is RainResult.Reading -> report(r.rainProb)      // 0..1, calibrated
     is RainResult.Skipped -> log(r.reason)           // e.g. "covered and dark (probably in a pocket or bag)"
 }

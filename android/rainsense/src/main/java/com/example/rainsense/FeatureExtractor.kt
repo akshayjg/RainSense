@@ -8,7 +8,7 @@ import kotlin.math.log10
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/** Kotlin port of rainmic/features.py. Keep the two in sync (same constants, same order). */
+/** Kotlin port of rainsense/features.py. Keep the two in sync (same constants, same order). */
 object FeatureExtractor {
     const val SR = 16000
     const val N = 1024

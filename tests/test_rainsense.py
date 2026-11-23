@@ -3,13 +3,13 @@ import math
 from pathlib import Path
 
 import numpy as np
-from rainmic.features import compute_features, FEATURE_NAMES, SR, BAND_BINS, N_FFT, N_BANDS, FMIN, FMAX
-from rainmic.synth import generate
-from rainmic.train import train
-from rainmic.predict import predict_clip, predict_features
-from rainmic.data import augment
-from rainmic.datasets import import_esc50_zip, import_fsd50k
-from rainmic.weather import check, lookup
+from rainsense.features import compute_features, FEATURE_NAMES, SR, BAND_BINS, N_FFT, N_BANDS, FMIN, FMAX
+from rainsense.synth import generate
+from rainsense.train import train
+from rainsense.predict import predict_clip, predict_features
+from rainsense.data import augment
+from rainsense.datasets import import_esc50_zip, import_fsd50k
+from rainsense.weather import check, lookup
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -39,7 +39,7 @@ def test_pipeline(tmp_path):
 
 
 def test_compare_evaluate():
-    from rainmic.compare import evaluate
+    from rainsense.compare import evaluate
     rng = np.random.default_rng(0)
     groups = np.repeat(np.arange(10), 3)            # 10 files, 3 clips each
     is_rain = groups % 2 == 0

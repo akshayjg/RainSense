@@ -17,12 +17,12 @@ sealed class RainResult {
 /**
  * The whole public API. Call from the host app while it is in the foreground (Android blocks background mic use):
  *
- *     when (val r = Pitterpat.sample(context)) {
+ *     when (val r = RainSense.sample(context)) {
  *         is RainResult.Reading -> report(r.rainProb)
  *         is RainResult.Skipped -> log(r.reason)
  *     }
  */
-object Pitterpat {
+object RainSense {
     @Volatile private var classifier: RainClassifier? = null
 
     /** Listens for 5 s and classifies on the phone. [useGate] = false skips the context checks (for testing). */

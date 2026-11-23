@@ -4,10 +4,10 @@ plugins {
 }
 
 android {
-    namespace = "com.example.rainmic"
+    namespace = "com.example.rainsense.demo"
     compileSdk = 34
     defaultConfig {
-        applicationId = "com.example.rainmic"
+        applicationId = "com.example.rainsense.demo"
         minSdk = 26
         targetSdk = 34
         versionCode = 1

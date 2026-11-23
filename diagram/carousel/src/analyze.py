@@ -8,10 +8,10 @@ from pathlib import Path
 import numpy as np
 from sklearn.model_selection import GroupShuffleSplit
 
-from rainmic.data import clips, load_mono_16k
-from rainmic.features import SR, compute_features
-from rainmic.predict import predict_features
-from rainmic.train import train
+from rainsense.data import clips, load_mono_16k
+from rainsense.features import SR, compute_features
+from rainsense.predict import predict_features
+from rainsense.train import train
 
 DATA, WORK = Path(sys.argv[1]), Path(sys.argv[2])
 files = [w for d in sorted(p for p in DATA.iterdir() if p.is_dir()) for w in sorted(d.glob("*.wav"))]

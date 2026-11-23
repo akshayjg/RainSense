@@ -5,7 +5,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.exp
 
-/** Loads assets/model.json (exported by rainmic.train) and runs softmax regression. */
+/** Loads assets/model.json (exported by rainsense.train) and runs softmax regression. */
 class RainClassifier(context: Context) {
     private val classes: List<String>
     private val mean: DoubleArray

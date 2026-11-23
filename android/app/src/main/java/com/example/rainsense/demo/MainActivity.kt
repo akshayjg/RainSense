@@ -1,4 +1,4 @@
-package com.example.rainmic
+package com.example.rainsense.demo
 
 import android.Manifest
 import android.content.Intent
@@ -20,7 +20,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.example.rainsense.FeatureExtractor
 import com.example.rainsense.RainResult
-import com.example.rainsense.Pitterpat
+import com.example.rainsense.RainSense
 import com.example.rainsense.recordPcm
 import com.example.rainsense.writeWav
 import kotlinx.coroutines.Dispatchers
@@ -50,7 +50,7 @@ class MainActivity : ComponentActivity() {
         val sampleNow = Button(this).apply { text = "Sample now (as a host app would)" }
 
         // Data collection: saves labelled clips to <external files>/recordings/<label>/<time>_<where>.wav,
-        // the same layout rainmic.train and rainmic.compare read.
+        // the same layout rainsense.train and rainsense.compare read.
         val header = TextView(this).apply { text = "Collect training data: where is the phone?"; setPadding(0, 64, 0, 16) }
         val where = Spinner(this).apply {
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, PLACES)
@@ -86,7 +86,7 @@ class MainActivity : ComponentActivity() {
             sampleNow.isEnabled = false
             RainState.text.value = "Listening for ${FeatureExtractor.CLIP_SECONDS} s..."
             lifecycleScope.launch {
-                RainState.text.value = when (val r = Pitterpat.sample(this@MainActivity)) {
+                RainState.text.value = when (val r = RainSense.sample(this@MainActivity)) {
                     is RainResult.Reading -> "Rain probability ${"%.0f".format(r.rainProb * 100)}%\n(${r.label})"
                     is RainResult.Skipped -> "Skipped: ${r.reason}"
                 }
@@ -126,7 +126,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         private const val COLLECT_SECONDS = 15 // = 3 training clips of 5 s
         private val LABELS = listOf("no_rain", "light", "moderate", "heavy")
-        // No underscores: rainmic.compare reads the place from the text after the last "_" in the filename.
+        // No underscores: rainsense.compare reads the place from the text after the last "_" in the filename.
         private val PLACES = listOf("hand", "pocket", "bag", "umbrella", "table", "other")
     }
 }

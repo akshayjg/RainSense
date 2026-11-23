@@ -10,9 +10,9 @@ from scipy.signal import butter, lfilter
 
 REPO, SCRATCH = Path(sys.argv[1]), Path(sys.argv[2])
 sys.path.insert(0, str(REPO))
-from rainmic.data import clips, load_mono_16k  # noqa: E402
+from rainsense.data import clips, load_mono_16k  # noqa: E402
 
-BRAND = "pitterpat"
+BRAND = "rainsense"
 N = 11
 metrics = json.loads((REPO / "models" / "metrics.json").read_text())
 analysis = json.loads((SCRATCH / "analysis.json").read_text())
@@ -92,12 +92,12 @@ slides.append(f'''
 <section class="slide">
   {top("api", 2)}
   <h2>One call from your app.</h2>
-  <p class="lede"><code>Pitterpat.sample()</code> checks the context, listens for 5 s, scores the audio and returns. No UI, no network, no background service.</p>
+  <p class="lede"><code>RainSense.sample()</code> checks the context, listens for 5 s, scores the audio and returns. No UI, no network, no background service.</p>
   <pre class="code"><span class="c">// build.gradle.kts</span>
 implementation(project(<span class="s">":rainsense"</span>))
 
 <span class="c">// in a coroutine, while your app is in the foreground</span>
-<span class="k">when</span> (<span class="k">val</span> r = Pitterpat.sample(context)) {{
+<span class="k">when</span> (<span class="k">val</span> r = RainSense.sample(context)) {{
     <span class="k">is</span> RainResult.Reading -> report(r.rainProb)
     <span class="k">is</span> RainResult.Skipped -> log(r.reason)
 }}</pre>
@@ -229,7 +229,7 @@ slides.append(f'''
   {top("weather check, example run", 7)}
   <h2>Checked against the sky.</h2>
   <p class="lede">Labels and predictions are compared with Open-Meteo's 15-minute precipitation where the phone was. Free, no API key, the last 92 days.</p>
-  <pre class="code term"><span class="c">$</span> python -m rainmic.weather --lat 52.37 --lon 4.90 data/
+  <pre class="code term"><span class="c">$</span> python -m rainsense.weather --lat 52.37 --lon 4.90 data/
 disagrees: rain/20261121-150000_hand.wav says rain,
            Open-Meteo 0.0 mm / 15 min
 <span class="s">2/3 agree with Open-Meteo</span></pre>
@@ -241,7 +241,7 @@ slides.append(f'''
 <section class="slide">
   {top("privacy", 8)}
   <h2>Audio never leaves the phone.</h2>
-  <p class="lede">Pitterpat returns a number and drops the sound. What the host app reports is its own choice; a rain map needs only this much.</p>
+  <p class="lede">RainSense returns a number and drops the sound. What the host app reports is its own choice; a rain map needs only this much.</p>
   <div class="split">
     <div class="panel">
       <h3 class="mono">Kept on the phone</h3>
@@ -324,7 +324,7 @@ slides.append(f'''
 
 CSS = (Path(__file__).parent / "slides.css").read_text()
 html = f'''<!doctype html><html lang="en" data-radius="sharp"><head><meta charset="utf-8">
-<title>Pitterpat demo</title>
+<title>RainSense demo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..700&family=JetBrains+Mono:wght@400..500&display=block" rel="stylesheet">
 <style>{CSS}</style></head><body>

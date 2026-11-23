@@ -1,4 +1,4 @@
-package com.example.rainmic
+package com.example.rainsense.demo
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -9,7 +9,7 @@ import android.content.pm.ServiceInfo
 import android.os.IBinder
 import androidx.core.app.ServiceCompat
 import com.example.rainsense.RainResult
-import com.example.rainsense.Pitterpat
+import com.example.rainsense.RainSense
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -47,7 +47,7 @@ class RainService : Service() {
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel(CHANNEL, "Rain monitoring", NotificationManager.IMPORTANCE_LOW))
         val n = Notification.Builder(this, CHANNEL)
-            .setContentTitle("RainMic is listening")
+            .setContentTitle("RainSense is listening")
             .setContentText("Sampling the microphone every minute")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .build()
@@ -61,7 +61,7 @@ class RainService : Service() {
             try {
                 val ts = fmt.format(Date())
                 // gate off: this harness is for a phone left in one place (often on Wi-Fi)
-                when (val r = Pitterpat.sample(this@RainService, useGate = false)) {
+                when (val r = RainSense.sample(this@RainService, useGate = false)) {
                     is RainResult.Reading -> {
                         log.appendText("$ts,${r.label}," + r.probs.entries.joinToString(",") { String.format(Locale.US, "%s=%.2f", it.key, it.value) } + "\n")
                         RainState.text.value = "$ts\n${r.label}\n" + r.probs.entries.joinToString("\n") { "%s: %.0f%%".format(it.key, it.value * 100) }

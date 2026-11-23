@@ -1,7 +1,7 @@
 """Check labels and predictions against real weather: Open-Meteo precipitation (free, no API key).
 
-  python -m rainmic.weather --lat 52.37 --lon 4.90 data/            # recordings saved as <yyyyMMdd-HHmmss>_<place>.wav
-  python -m rainmic.weather --lat 52.37 --lon 4.90 rain_log.csv     # the demo app's monitoring log
+  python -m rainsense.weather --lat 52.37 --lon 4.90 data/            # recordings saved as <yyyyMMdd-HHmmss>_<place>.wav
+  python -m rainsense.weather --lat 52.37 --lon 4.90 rain_log.csv     # the demo app's monitoring log
 
 Uses 15-minute precipitation for the last 92 days at one location (where the phone was).
 """
