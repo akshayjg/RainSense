@@ -219,3 +219,64 @@ h2 { font-size: 76px; line-height: 1.02; letter-spacing: -.038em; margin-top: 64
 
 /* centre a slide's main block in the space below the lede */
 .mid { margin-top: auto; margin-bottom: auto; }
+
+/* ===== technical-overview deck (.r) ===== */
+.r h2 { font-size: 60px; line-height: 1.04; margin-top: 52px; max-width: 880px; }
+.r .lede { font-size: 27px; margin-top: 22px; max-width: 880px; }
+.fig { font: 400 18px/1.5 var(--font-mono); color: var(--p-muted); margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--p-line); }
+.fig b { color: var(--p-ink); font-weight: 600; margin-right: 8px; }
+
+/* cover */
+.cover.r h1 { font-size: 156px; margin-top: 120px; letter-spacing: -.055em; }
+.subtitle { font: 400 46px/1.12 var(--font-display); letter-spacing: -.025em; color: #fff; margin-top: 26px; max-width: 760px; }
+.cover.r .lede { max-width: 600px; }
+.deco { position: absolute; right: 88px; top: 700px; width: 300px; display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; }
+.deco i { aspect-ratio: 1; background: rgba(124, 155, 255, var(--v)); outline: 1px solid #262626; outline-offset: -1px; }
+.keyband { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: auto; border-top: 1px solid var(--p-inv-line); }
+.keyband > div { padding: 30px 20px 0 0; }
+.keyband dt { font: 400 58px/1 var(--font-display); letter-spacing: -.035em; color: #fff; }
+.keyband dd { font: 400 18px/1.4 var(--font-mono); color: var(--p-inv-muted); margin-top: 12px; }
+.byline { font-size: 18px; color: var(--p-inv-muted); margin-top: 40px; }
+
+/* numbered stage lists */
+.stages { list-style: none; }
+.stages li { display: grid; grid-template-columns: 56px 1fr; column-gap: 12px; padding: 15px 0; border-bottom: 1px solid var(--p-line); }
+.stages li:last-child { border-bottom: 0; }
+.stages .n { grid-row: span 2; font-size: 18px; color: var(--p-accent); padding-top: 7px; }
+.stages b { font: 500 28px/1.2 var(--font-display); letter-spacing: -.015em; }
+.stages .d { font: 400 19px/1.4 var(--font-mono); color: var(--p-muted); margin-top: 6px; }
+.method { border-top: 1px solid var(--p-ink); }
+.method li { padding: 26px 0; border-bottom: 1px solid var(--p-line) !important; }
+.method b { font-size: 32px; }
+.method .d { font-size: 21px; }
+
+/* architecture */
+.arch { margin-top: 40px; display: flex; flex-direction: column; }
+.tier .stages li { padding: 11px 0; }
+.tier { border: 1.5px solid var(--p-ink); padding: 22px 28px 6px; }
+.tier.srv { border-style: dashed; }
+.tier h3 { font: 500 18px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--p-accent); margin-bottom: 4px; }
+.arrow { align-self: center; font-size: 22px; padding: 14px 0; color: var(--p-ink); }
+.arrow::before, .arrow::after { content: "↓"; margin: 0 16px; color: var(--p-accent); }
+
+/* spectrograms */
+.specs { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: auto; }
+.specs h3 { font: 500 18px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--p-muted); margin-bottom: 12px; }
+.specbox { background: #0d1224; }
+.spec { width: 100%; height: 330px; display: block; object-fit: fill; }
+.spec-px rect { fill: #8fb0ff; }
+.ax { display: flex; justify-content: space-between; font-size: 15px; color: var(--p-muted); margin-top: 8px; }
+.r .facts { margin-top: 36px; }
+.r .facts dt { font-size: 44px; }
+
+/* trade-off chart */
+.roc { width: 904px; height: 620px; margin-top: auto; }
+.roc .grid { stroke: var(--p-line); stroke-width: 1.5; }
+.roc .tick { font: 400 19px var(--font-mono); fill: var(--p-muted); }
+.roc .axis { font: 400 21px var(--font-mono); fill: var(--p-muted); }
+.roc .curve { fill: none; stroke: var(--p-ink); stroke-width: 3; }
+.roc .pt { fill: #fff; stroke: var(--p-ink); stroke-width: 3; }
+.roc .sel { fill: var(--p-accent); stroke: #fff; stroke-width: 4; }
+.roc .tl { font: 400 18px var(--font-mono); fill: var(--p-muted); }
+.roc .sl { font: 600 24px var(--font-display); fill: var(--p-accent); }
+.roc .cap { stroke: var(--p-accent); stroke-dasharray: 6 8; stroke-width: 2; }
