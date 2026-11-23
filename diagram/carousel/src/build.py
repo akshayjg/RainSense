@@ -13,7 +13,7 @@ sys.path.insert(0, str(REPO))
 from rainsense.data import clips, load_mono_16k  # noqa: E402
 
 BRAND = "rainsense"
-N = 10
+N = 11
 metrics = json.loads((REPO / "models" / "metrics.json").read_text())
 parity = [float(x) for x in (REPO / "tests" / "fixtures" / "parity_features.txt").read_text().split()]
 DATA = SCRATCH / "data_esc50"
@@ -54,9 +54,9 @@ rain_streaks = "".join(
 bars = "".join(f'<i style="height:{h}px"></i>' for h in [10, 22, 14, 34, 18, 42, 24, 12, 38, 16, 30, 10, 40, 20, 14, 32, 16, 24, 10, 18])
 slides.append(f'''
 <section class="slide inv cover">
-  {top("android sdk", 1, True)}
-  <h1>Rain detection for any Android app.</h1>
-  <p class="lede">Five seconds of microphone audio, scored on the phone. Many phones together draw a street-level rain map.</p>
+  {top("hyper-local rain", 1, True)}
+  <h1>Rain, street by street.</h1>
+  <p class="lede">Weather apps tell you about your city. RainSense tells you about your street: five seconds of phone audio, scored on the device, pooled from many phones.</p>
   <div class="cover-low">
     <dl class="stats-col">
       <div><dt>5 s</dt><dd>of audio per reading</dd></div>
@@ -83,10 +83,28 @@ slides.append(f'''
   </div>
 </section>''')
 
-# 2 api -------------------------------------------------------------
+# 2 idea ------------------------------------------------------------
+fine = ""
+for r in range(8):
+    for c in range(8):
+        v = max(0.0, 1 - abs((c - 0.8 * r) - 1.5) / 3.2)  # a rain band crossing the area diagonally
+        fine += f'<i class="{"rain" if v >= 0.5 else ""}" style="--v:{v:.2f}"></i>'
 slides.append(f'''
 <section class="slide">
-  {top("api", 2)}
+  {top("the idea", 2)}
+  <h2>Your weather app sees the city. RainSense sees the street.</h2>
+  <p class="lede">Forecasts and rain gauges give one answer for a whole area. Phones already out on the street can tell one block from the next.</p>
+  <div class="cmp">
+    <div><h3>weather app</h3><div class="coarse"><span>“Rain in your area”</span></div><p>One answer for everyone in it</p></div>
+    <div><h3>rainsense</h3><div class="fine">{fine}</div><p>Raining on this street, dry on the next</p></div>
+  </div>
+  <p class="foot-light mono">Illustration: the same neighbourhood, two resolutions</p>
+</section>''')
+
+# 3 api -------------------------------------------------------------
+slides.append(f'''
+<section class="slide">
+  {top("api", 3)}
   <h2>One call from your app.</h2>
   <p class="lede"><code>RainSense.sample()</code> checks the context, listens for 5 s, scores the audio and returns. No UI, no network, no background service.</p>
   <pre class="code"><span class="c">// build.gradle.kts</span>
@@ -108,7 +126,7 @@ implementation(project(<span class="s">":rainsense"</span>))
   </dl>
 </section>''')
 
-# 3 gate ------------------------------------------------------------
+# 4 gate ------------------------------------------------------------
 gate = [
     ("Wi-Fi connected", "on Wi-Fi (probably indoors)"),
     ("Faster than 25 km/h", "moving fast (probably in a vehicle)"),
@@ -119,7 +137,7 @@ rows = "".join(f'<li><span class="n mono">{i + 1:02d}</span><div><b>{s}</b><code
                for i, (s, r) in enumerate(gate))
 slides.append(f'''
 <section class="slide">
-  {top("context gate", 3)}
+  {top("context gate", 4)}
   <h2>Skips the readings that would mislead.</h2>
   <p class="lede">Four checks around the microphone. A skipped reading costs nothing; a wrong one pollutes the map.</p>
   <ol class="gate">{rows}
@@ -127,7 +145,7 @@ slides.append(f'''
   </ol>
 </section>''')
 
-# 4 median ----------------------------------------------------------
+# 5 median ----------------------------------------------------------
 ir = metrics["street_noise_2s_detected"]
 win_bars = [(0.90, "rain"), (0.08, "horn"), (0.86, "rain"), (0.11, "siren"), (0.88, "rain")]
 med = sorted(v for v, _ in win_bars)[2]
@@ -141,7 +159,7 @@ def hbar(label, v, n, strong=False):
 
 slides.append(f'''
 <section class="slide">
-  {top("1 s windows", 4)}
+  {top("1 s windows", 5)}
   <h2>Short bursts of noise get outvoted.</h2>
   <p class="lede">Every 5 s reading is five 1 s windows, and the answer is their median. With two seconds of street noise inside, the median still finds the rain far more often than an average does.</p>
   <div class="strip"><div class="median" style="bottom:{med * 300 + 46:.0f}px"><span class="mono">median</span></div>{strip}</div>
@@ -153,12 +171,12 @@ slides.append(f'''
   </div>
 </section>''')
 
-# 5 data ------------------------------------------------------------
+# 6 data ------------------------------------------------------------
 waves = [("rain", rain, ""), ("+ engine, 0 dB", mixed, ""), ("+ pocket, 1.2 kHz", muffled, "")]
 wrows = "".join(f'<div class="wave"><span class="mono">{l}</span><svg viewBox="0 0 640 96" preserveAspectRatio="none"><path d="{wave_path(y)}"/></svg></div>' for l, y, _ in waves)
 slides.append(f'''
 <section class="slide">
-  {top("training data", 5)}
+  {top("training data", 6)}
   <h2>Trained on real rain, then roughed up.</h2>
   <p class="lede">ESC-50 recordings: rain against 20 sounds that are easy to mistake for it. Every training window gets a harder copy.</p>
   <dl class="facts four">
@@ -171,7 +189,7 @@ slides.append(f'''
   <div class="chips"><span>noise at −3 to 10 dB SNR</span><span>low-pass 0.8–2.5 kHz</span><span>gain ×0.3–1.5</span></div>
 </section>''')
 
-# 6 calibration -----------------------------------------------------
+# 7 calibration -----------------------------------------------------
 X0, Y0, S = 110, 540, 480   # chart origin and size
 
 
@@ -194,7 +212,7 @@ ticks = "".join(f'<text x="{X0 + t * S:.0f}" y="{Y0 + 40}" class="tick" text-anc
                 f'<line x1="{X0}" y1="{Y0 - t * S:.0f}" x2="{X0 + S}" y2="{Y0 - t * S:.0f}" class="grid"/>' for t in (0, .25, .5, .75, 1))
 slides.append(f'''
 <section class="slide">
-  {top("calibration", 6)}
+  {top("calibration", 7)}
   <h2>Its confident answers hold up.</h2>
   <p class="lede">A fitted temperature and class offset are folded into the exported weights, so readings from many phones can be averaged honestly.</p>
   <svg class="rel" viewBox="0 0 904 660">
@@ -218,10 +236,10 @@ slides.append(f'''
   </dl>
 </section>''')
 
-# 7 privacy ---------------------------------------------------------
+# 8 privacy ---------------------------------------------------------
 slides.append(f'''
 <section class="slide">
-  {top("privacy", 7)}
+  {top("privacy", 8)}
   <h2>Audio never leaves the phone.</h2>
   <p class="lede">RainSense returns a number and drops the sound. What the host app reports is its own choice; a rain map needs only this much.</p>
   <div class="split">
@@ -243,7 +261,7 @@ slides.append(f'''
   </div>
 </section>''')
 
-# 8 map ---------------------------------------------------------------
+# 9 map ---------------------------------------------------------------
 grid = [
     [8, 12, 41, 58, 47, 15, 6, None],
     [10, 38, 66, 81, 62, 33, 9, 4],
@@ -262,20 +280,20 @@ for row in grid:
             cells += f'<div class="cell{" rain" if v >= 50 else ""}" style="--v:{v / 100:.2f}">{txt}</div>'
 slides.append(f'''
 <section class="slide">
-  {top("city map, concept", 8)}
+  {top("city map, concept", 9)}
   <h2>One rain map from many phones.</h2>
-  <p class="lede">Each 500 m cell pools 10 minutes of readings. Three or more, with a weighted mean over 50%, mark it as raining.</p>
+  <p class="lede">Readings pool into map cells every 10 minutes. More phones, smaller cells: down to a single street.</p>
   <div class="map">{cells}</div>
-  <div class="legend map-legend"><span class="scale"><i></i></span><span class="mono">0–100% of phones hear rain</span><span class="nd"><i></i><span class="mono">under 3 readings</span></span><span><b class="outline"></b><span class="mono">raining</span></span></div>
+  <div class="legend map-legend"><span class="scale"><i></i></span><span class="mono">% of phones hearing rain</span><span class="nd"><i></i><span class="mono">under 3 readings</span></span><span><b class="outline"></b><span class="mono">raining</span></span></div>
 </section>''')
 
-# 9 parity ----------------------------------------------------------
+# 10 parity ----------------------------------------------------------
 prow = [("band 94–125 Hz", parity[0]), ("band 0.9–1.2 kHz", parity[8]), ("band 6.1–8 kHz", parity[15]),
         ("spectral flatness", parity[16]), ("RMS level, dB", parity[17]), ("2–8 kHz variability, dB", parity[18])]
 trs = "".join(f'<tr><td>{n}</td><td class="mono">{v:.6f}</td><td class="mono ok">within 1e-6</td></tr>' for n, v in prow)
 slides.append(f'''
 <section class="slide">
-  {top("parity", 9)}
+  {top("parity", 10)}
   <h2>Python trains it. Kotlin runs it. Same numbers.</h2>
   <p class="lede">Both sides compute the 19 features of the same generated signal and check them against one shared file.</p>
   <table class="ptable"><thead><tr><th>feature</th><th>Python</th><th>Kotlin</th></tr></thead><tbody>{trs}</tbody></table>
@@ -285,10 +303,10 @@ slides.append(f'''
   </div>
 </section>''')
 
-# 10 roadmap -------------------------------------------------------
+# 11 roadmap -------------------------------------------------------
 slides.append(f'''
 <section class="slide inv">
-  {top("roadmap", 10, True)}
+  {top("roadmap", 11, True)}
   <h2>From public recordings to real streets.</h2>
   <p class="lede">RainSense is open source. The next steps take it into the field.</p>
   <ol class="next">

@@ -5,7 +5,9 @@
 
 ![RainSense: phones listen for 5 s, decide on-device and report anonymously to a street-level rain map](diagram/linkedin-demo/rainsense-demo@2x.png)
 
-Detect rain from a phone microphone, on the phone, as a library any app can embed. Many phones reporting together give a street-level rain map (see [docs/OUTLINE.md](docs/OUTLINE.md)).
+Weather apps and official forecasts tell you whether it's raining in your city. RainSense is built to tell you whether it's raining on your street.
+
+It detects rain from a phone microphone, on the phone, as a library any app can embed. Many phones reporting together give a hyper-local rain map whose cells shrink as more phones report, down to a single street (see [docs/OUTLINE.md](docs/OUTLINE.md)).
 
 Raindrops produce broadband, impulsive noise, mostly 1-8 kHz. This repo has:
 

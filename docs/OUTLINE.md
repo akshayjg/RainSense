@@ -6,7 +6,7 @@ Prototype outline. Not a spec.
 
 Build a street-level rain map from phones people already carry. The detector is a small module inside an existing, widely used app. It listens for a few seconds at natural moments, like waiting at a bus stop or for a cab, and reports whether it hears rain.
 
-- **Output:** for each ~500 m grid cell and each 10-minute window, *dry* or *rain*. Coarse intensity (light/heavy) comes later.
+- **Output:** for each map cell and each 10-minute window, *dry* or *rain*. Cells start at ~500 m and shrink where enough phones report, down to a single street; official forecasts and gauges give one answer for a much larger area. Coarse intensity (light/heavy) comes later.
 - **Not goals:** intensity from a single phone, always-on background listening, background use on iOS.
 
 Why it can work: a single phone is often wrong (it may be in a pocket, in a vehicle, or next to traffic). Many phones in the same area agreeing is reliable.
