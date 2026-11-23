@@ -15,7 +15,8 @@ HOP = 512
 N_BANDS = 16
 FMIN = 100.0
 FMAX = 8000.0
-CLIP_SECONDS = 5
+CLIP_SECONDS = 5     # length of one recording
+WINDOW_SECONDS = 1   # the model scores 1 s windows; a clip's result is the median over its windows
 
 # FFT-bin ranges [lo, hi) per band (floor(edge/bin_width + 0.5)). Hard-coded so the
 # Android port can copy them verbatim; tests check they match the formula.

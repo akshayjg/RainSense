@@ -6,11 +6,10 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.media.AudioFormat
-import android.media.AudioRecord
-import android.media.MediaRecorder
 import android.os.IBinder
 import androidx.core.app.ServiceCompat
+import com.example.rainsense.RainResult
+import com.example.rainsense.Pitterpat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -56,45 +55,27 @@ class RainService : Service() {
     }
 
     private suspend fun loop() {
-        val classifier = RainClassifier(this)
         val log = File(filesDir, "rain_log.csv")
         val fmt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
         while (scope.isActive) {
             try {
-                val pcm = recordClip()
-                val (label, probs) = classifier.classify(pcm)
                 val ts = fmt.format(Date())
-                val line = "$ts,$label," + probs.entries.joinToString(",") { "%s=%.2f".format(it.key, it.value) }
-                log.appendText(line + "\n")
-                RainState.text.value = "$ts\n$label\n" + probs.entries.joinToString("\n") { "%s: %.0f%%".format(it.key, it.value * 100) }
+                // gate off: this harness is for a phone left in one place (often on Wi-Fi)
+                when (val r = Pitterpat.sample(this@RainService, useGate = false)) {
+                    is RainResult.Reading -> {
+                        log.appendText("$ts,${r.label}," + r.probs.entries.joinToString(",") { String.format(Locale.US, "%s=%.2f", it.key, it.value) } + "\n")
+                        RainState.text.value = "$ts\n${r.label}\n" + r.probs.entries.joinToString("\n") { "%s: %.0f%%".format(it.key, it.value * 100) }
+                    }
+                    is RainResult.Skipped -> {
+                        log.appendText("$ts,skipped,${r.reason}\n")
+                        RainState.text.value = "$ts\nskipped: ${r.reason}"
+                    }
+                }
             } catch (e: Exception) {
                 RainState.text.value = "Error: ${e.message}"
             }
             delay(INTERVAL_MS)
         }
-    }
-
-    @Suppress("MissingPermission") // permission is requested in MainActivity before starting the service
-    private fun recordClip(): ShortArray {
-        val total = FeatureExtractor.SR * FeatureExtractor.CLIP_SECONDS
-        val minBuf = AudioRecord.getMinBufferSize(FeatureExtractor.SR, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
-        val rec = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
-            FeatureExtractor.SR, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(minBuf, 8192)
-        )
-        val out = ShortArray(total)
-        try {
-            rec.startRecording()
-            var read = 0
-            while (read < total) {
-                val r = rec.read(out, read, total - read)
-                if (r <= 0) throw IllegalStateException("AudioRecord read failed ($r)")
-                read += r
-            }
-        } finally {
-            rec.release()
-        }
-        return out
     }
 
     override fun onDestroy() {

@@ -1,4 +1,4 @@
-package com.example.rainmic
+package com.example.rainsense
 
 import kotlin.math.PI
 import kotlin.math.cos
@@ -14,6 +14,7 @@ object FeatureExtractor {
     const val N = 1024
     const val HOP = 512
     const val CLIP_SECONDS = 5
+    const val WINDOW_SECONDS = 1
 
     private val BAND_BINS = arrayOf(
         6 to 8, 8 to 11, 11 to 15, 15 to 19, 19 to 25, 25 to 33, 33 to 44, 44 to 57,

@@ -5,4 +5,4 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = "RainMic"
-include(":app")
+include(":app", ":rainsense")

@@ -1,11 +1,11 @@
-"""Classify a wav file using model.json (same math as the Android app)."""
+"""Classify a wav file using model.json (same math as the Android library)."""
 import argparse
 import json
 
 import numpy as np
 
-from .data import load_mono_16k, clips
-from .features import compute_features
+from .data import clips, load_mono_16k
+from .features import CLIP_SECONDS, compute_features
 
 
 def predict_features(model, f):
@@ -16,14 +16,21 @@ def predict_features(model, f):
     return dict(zip(model["classes"], p.tolist()))
 
 
+def predict_clip(model, clip):
+    """Median of the per-window probabilities, so one loud second (a horn, a shout) can't flip the result."""
+    P = np.array([list(predict_features(model, compute_features(w)).values()) for w in clips(clip)])
+    p = np.median(P, axis=0)
+    return dict(zip(model["classes"], (p / p.sum()).tolist()))
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("wav")
     ap.add_argument("--model", default="models/model.json")
     a = ap.parse_args()
-    model = json.load(open(a.model))
-    y = load_mono_16k(a.wav)
-    for i, c in enumerate(clips(y)):
-        probs = predict_features(model, compute_features(c))
+    with open(a.model) as f:
+        model = json.load(f)
+    for i, c in enumerate(clips(load_mono_16k(a.wav), CLIP_SECONDS)):
+        probs = predict_clip(model, c)
         best = max(probs, key=probs.get)
-        print(f"clip {i} ({i * 5}-{i * 5 + 5}s): {best}  " + "  ".join(f"{k}={v:.2f}" for k, v in probs.items()))
+        print(f"clip {i} ({i * CLIP_SECONDS}-{(i + 1) * CLIP_SECONDS}s): {best}  " + "  ".join(f"{k}={v:.2f}" for k, v in probs.items()))
