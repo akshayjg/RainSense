@@ -1,37 +1,16 @@
-"""Builds slides.html: an 11-slide LinkedIn carousel (1080x1350) from real project outputs.
+"""Builds slides.html: a 6-slide LinkedIn carousel (1080x1350) from real project outputs.
 Design: taste-skill deal (palette white-link-blue, type Schibsted Grotesk + JetBrains Mono, radius sharp, software kind)
 plus ui-ux-pro-max chart rules (values printed, numeric legend, never colour alone)."""
 import json
 import sys
 from pathlib import Path
 
-import numpy as np
-from scipy.signal import butter, lfilter
-
-REPO, SCRATCH = Path(sys.argv[1]), Path(sys.argv[2])
-sys.path.insert(0, str(REPO))
-from rainsense.data import clips, load_mono_16k  # noqa: E402
+REPO = Path(sys.argv[1])
 
 BRAND = "rainsense"
-N = 11
+N = 6
 metrics = json.loads((REPO / "models" / "metrics.json").read_text())
-parity = [float(x) for x in (REPO / "tests" / "fixtures" / "parity_features.txt").read_text().split()]
-DATA = SCRATCH / "data_esc50"
-
-# ---------- real waveforms ----------
-rain = list(clips(load_mono_16k(sorted((DATA / "rain").glob("*.wav"))[3])))[1]
-engine = list(clips(load_mono_16k(sorted((DATA / "no_rain").glob("esc50_engine_*.wav"))[0])))[0]
-mixed = rain + engine * np.sqrt(np.mean(rain ** 2) / np.mean(engine ** 2))          # 0 dB SNR, as data.augment does
-b, a = butter(4, 1200, fs=16000)
-muffled = lfilter(b, a, rain)                                                     # pocket low-pass, as data.augment does
-
-
-def wave_path(y, w=640, h=96):
-    y = y / (np.abs(np.r_[rain, mixed]).max() + 1e-9)
-    cols = np.array_split(np.abs(y), w // 2)
-    top = [f"{i * 2},{h / 2 - c.max() * h / 2:.1f}" for i, c in enumerate(cols)]
-    bot = [f"{i * 2},{h / 2 + c.max() * h / 2:.1f}" for i, c in reversed(list(enumerate(cols)))]
-    return "M" + " L".join(top + bot) + " Z"
+false_alarms = next(o["false_alarms"] for o in metrics["operating_points"] if o["threshold"] == metrics["rain_threshold"])
 
 
 def top(label, i, inv=False):
@@ -61,7 +40,7 @@ slides.append(f'''
     <dl class="stats-col">
       <div><dt>5 s</dt><dd>of audio per reading</dd></div>
       <div><dt>0 bytes</dt><dd>of audio uploaded</dd></div>
-      <div><dt>{pct(metrics["clip_accuracy"])}</dt><dd>of 5 s clips classified right, cross-validated</dd></div>
+      <div><dt>1 call</dt><dd>from any Android app</dd></div>
     </dl>
     <div class="phone">
       <div class="screen">
@@ -101,167 +80,22 @@ slides.append(f'''
   <p class="foot-light mono">Illustration: the same neighbourhood, two resolutions</p>
 </section>''')
 
-# 3 api -------------------------------------------------------------
+# 3 how -------------------------------------------------------------
+steps = [("Listen", "The phone records five seconds of sound."),
+         ("Check", "Readings from pockets, vehicles and indoors are skipped."),
+         ("Decide", "The phone works out whether it hears rain."),
+         ("Share", "Only a probability is sent. The audio is deleted.")]
+rows = "".join(f'<li><span class="n mono">{i + 1:02d}</span><div><b>{t}</b><code>{d}</code></div><span></span></li>'
+               for i, (t, d) in enumerate(steps))
 slides.append(f'''
 <section class="slide">
-  {top("api", 3)}
-  <h2>One call from your app.</h2>
-  <p class="lede"><code>RainSense.sample()</code> checks the context, listens for 5 s, scores the audio and returns. No UI, no network, no background service.</p>
-  <pre class="code"><span class="c">// build.gradle.kts</span>
-implementation(project(<span class="s">":rainsense"</span>))
-
-<span class="c">// in a coroutine, while your app is in the foreground</span>
-<span class="k">when</span> (<span class="k">val</span> r = RainSense.sample(context)) {{
-    <span class="k">is</span> RainResult.Reading -> report(r.rainProb)
-    <span class="k">is</span> RainResult.Skipped -> log(r.reason)
-}}</pre>
-  <div class="results">
-    <div class="res"><span class="tag">Reading</span><code>rainProb = 0.92, label = "rain"</code></div>
-    <div class="res"><span class="tag">Skipped</span><code>"covered and dark (probably in a pocket or bag)"</code></div>
-  </div>
-  <dl class="facts">
-    <div><dt>Android 8.0+</dt><dd>minSdk 26</dd></div>
-    <div><dt>1 permission</dt><dd>RECORD_AUDIO</dd></div>
-    <div><dt>suspend fun</dt><dd>runs on Dispatchers.IO</dd></div>
-  </dl>
+  {top("how it works", 3)}
+  <h2>Five seconds, on the phone.</h2>
+  <p class="lede">Any Android app can add RainSense with a single call.</p>
+  <ol class="gate mid">{rows}</ol>
 </section>''')
 
-# 4 gate ------------------------------------------------------------
-gate = [
-    ("Wi-Fi connected", "on Wi-Fi (probably indoors)"),
-    ("Faster than 25 km/h", "moving fast (probably in a vehicle)"),
-    ("Proximity covered, under 5 lux", "covered and dark (probably in a pocket or bag)"),
-    ("Silent clip after recording", "microphone busy (silent clip)"),
-]
-rows = "".join(f'<li><span class="n mono">{i + 1:02d}</span><div><b>{s}</b><code>"{r}"</code></div><span class="chip">skip</span></li>'
-               for i, (s, r) in enumerate(gate))
-slides.append(f'''
-<section class="slide">
-  {top("context gate", 4)}
-  <h2>Skips the readings that would mislead.</h2>
-  <p class="lede">Four checks around the microphone. A skipped reading costs nothing; a wrong one pollutes the map.</p>
-  <ol class="gate">{rows}
-    <li class="go"><span class="n mono">ok</span><div><b>All clear</b><code>record 5 s, score, return a Reading</code></div><span class="chip solid">read</span></li>
-  </ol>
-</section>''')
-
-# 5 median ----------------------------------------------------------
-ir = metrics["street_noise_2s_detected"]
-win_bars = [(0.90, "rain"), (0.08, "horn"), (0.86, "rain"), (0.11, "siren"), (0.88, "rain")]
-med = sorted(v for v, _ in win_bars)[2]
-strip = "".join(f'<div class="w{" noise" if l in ("horn", "siren") else ""}"><i style="height:{v * 300:.0f}px"></i><span class="mono">{l}</span></div>' for v, l in win_bars)
-
-
-def hbar(label, v, n, strong=False):
-    return (f'<div class="hb{" strong" if strong else ""}"><span class="hb-l">{label}</span>'
-            f'<span class="hb-t"><i style="width:{v * 100:.1f}%"></i></span><span class="hb-v mono">{round(v * n)}/{n}</span></div>')
-
-
-slides.append(f'''
-<section class="slide">
-  {top("1 s windows", 5)}
-  <h2>Short bursts of noise get outvoted.</h2>
-  <p class="lede">Every 5 s reading is five 1 s windows, and the answer is their median. With two seconds of street noise inside, the median still finds the rain far more often than an average does.</p>
-  <div class="strip"><div class="median" style="bottom:{med * 300 + 46:.0f}px"><span class="mono">median</span></div>{strip}</div>
-  <div class="chart">
-    <div class="chart-h"><b>Rain clips still detected, 2 s of street noise inside</b><span class="mono">cross-validated, {ir["median"][1]} clips</span></div>
-    {hbar("Median of 5 windows", *ir["median"], True)}
-    {hbar("Mean of 5 windows", *ir["mean"])}
-    {hbar("One 1 s check on the noise", *ir["noise_window"])}
-  </div>
-</section>''')
-
-# 6 data ------------------------------------------------------------
-waves = [("rain", rain, ""), ("+ engine, 0 dB", mixed, ""), ("+ pocket, 1.2 kHz", muffled, "")]
-wrows = "".join(f'<div class="wave"><span class="mono">{l}</span><svg viewBox="0 0 640 96" preserveAspectRatio="none"><path d="{wave_path(y)}"/></svg></div>' for l, y, _ in waves)
-slides.append(f'''
-<section class="slide">
-  {top("training data", 6)}
-  <h2>Trained on real rain, then roughed up.</h2>
-  <p class="lede">ESC-50 recordings: rain against 20 sounds that are easy to mistake for it. Every training window gets a harder copy.</p>
-  <dl class="facts four">
-    <div><dt>40</dt><dd>rain recordings</dd></div>
-    <div><dt>626</dt><dd>confuser recordings</dd></div>
-    <div><dt>20</dt><dd>kinds of confuser</dd></div>
-    <div><dt>{metrics["windows"]:,}</dt><dd>1 s windows</dd></div>
-  </dl>
-  <div class="waves">{wrows}</div>
-  <div class="chips"><span>noise at −3 to 10 dB SNR</span><span>low-pass 0.8–2.5 kHz</span><span>gain ×0.3–1.5</span></div>
-</section>''')
-
-# 7 calibration -----------------------------------------------------
-X0, Y0, S = 110, 540, 480   # chart origin and size
-
-
-def pt(p, o):
-    return X0 + p * S, Y0 - o * S
-
-
-raw = metrics["reliability_raw"]
-cal = metrics["reliability_calibrated"]
-raw_pts = "".join(f'<circle cx="{pt(p, o)[0]:.0f}" cy="{pt(p, o)[1]:.0f}" r="11" class="raw"/>' for p, o, _ in raw)
-cal_pts = "".join(f'<rect x="{pt(p, o)[0] - 10:.0f}" y="{pt(p, o)[1] - 10:.0f}" width="20" height="20" class="cal"/>'
-                  for p, o, n in cal)
-r7, c7 = raw[3], cal[3]
-# label rows for the two callouts, pushed apart when the points sit close (each label block is ~60 px tall)
-yc, yr = pt(*c7[:2])[1], pt(*r7[:2])[1]
-gap = max(0, 64 - abs(yr - yc)) / 2
-yc, yr = (yc - gap, yr + gap) if yc <= yr else (yc + gap, yr - gap)
-ticks = "".join(f'<text x="{X0 + t * S:.0f}" y="{Y0 + 40}" class="tick" text-anchor="middle">{int(t * 100)}%</text>'
-                f'<text x="{X0 - 18}" y="{Y0 - t * S + 8:.0f}" class="tick" text-anchor="end">{int(t * 100)}%</text>'
-                f'<line x1="{X0}" y1="{Y0 - t * S:.0f}" x2="{X0 + S}" y2="{Y0 - t * S:.0f}" class="grid"/>' for t in (0, .25, .5, .75, 1))
-slides.append(f'''
-<section class="slide">
-  {top("calibration", 7)}
-  <h2>Its confident answers hold up.</h2>
-  <p class="lede">A fitted temperature and class offset are folded into the exported weights, so readings from many phones can be averaged honestly.</p>
-  <svg class="rel" viewBox="0 0 904 660">
-    {ticks}
-    <line x1="{X0}" y1="{Y0}" x2="{X0 + S}" y2="{Y0 - S}" class="diag"/>
-    <text x="{X0 + S - 6}" y="{Y0 - S - 16}" class="lbl" text-anchor="end">perfect</text>
-    {raw_pts}{cal_pts}
-    <polyline points="{pt(*r7[:2])[0] + 14:.0f},{pt(*r7[:2])[1]:.0f} {X0 + S + 20},{pt(*r7[:2])[1]:.0f} {X0 + S + 40},{yr - 14:.0f}" class="lead" fill="none"/>
-    <text x="{X0 + S + 52}" y="{yr - 6:.0f}" class="lbl">before: said {pct(r7[0])}</text>
-    <text x="{X0 + S + 52}" y="{yr + 26:.0f}" class="lbl muted">was rain {pct(r7[1])}</text>
-    <polyline points="{pt(*c7[:2])[0] + 14:.0f},{pt(*c7[:2])[1]:.0f} {X0 + S + 20},{pt(*c7[:2])[1]:.0f} {X0 + S + 40},{yc - 14:.0f}" class="lead acc" fill="none"/>
-    <text x="{X0 + S + 52}" y="{yc - 6:.0f}" class="lbl acc">after: said {pct(c7[0])}</text>
-    <text x="{X0 + S + 52}" y="{yc + 26:.0f}" class="lbl muted">was rain {pct(c7[1])}</text>
-    <text x="{X0 + S / 2}" y="{Y0 + 86}" class="axis" text-anchor="middle">predicted rain probability</text>
-    <text transform="translate(26 {Y0 - S / 2}) rotate(-90)" class="axis" text-anchor="middle">observed share of rain</text>
-  </svg>
-  <div class="legend"><span><i class="lg-raw"></i>before</span><span><i class="lg-cal"></i>after calibration</span><span class="mono">cross-validated, bins of {min(n for *_, n in cal)}–{max(n for *_, n in cal)} windows</span></div>
-  <dl class="facts two">
-    <div><dt>{metrics["logloss_raw"]:.3f} → {metrics["logloss_calibrated"]:.3f}</dt><dd>cross-validated log-loss</dd></div>
-    <div><dt>T = {metrics["temperature"]:.2f}</dt><dd>plus one offset per class</dd></div>
-  </dl>
-</section>''')
-
-# 8 privacy ---------------------------------------------------------
-slides.append(f'''
-<section class="slide">
-  {top("privacy", 8)}
-  <h2>Audio never leaves the phone.</h2>
-  <p class="lede">RainSense returns a number and drops the sound. What the host app reports is its own choice; a rain map needs only this much.</p>
-  <div class="split">
-    <div class="panel">
-      <h3 class="mono">Kept on the phone</h3>
-      <ul class="kept"><li><b>5 s of audio</b><span>scored in memory, then dropped</span></li>
-        <li><b>Exact location</b><span>rounded to a 500 m cell</span></li>
-        <li><b>User and device IDs</b><span>not needed, not sent</span></li></ul>
-    </div>
-    <div class="panel dark">
-      <h3 class="mono">Sent by the host app</h3>
-      <pre class="json">&#123;
-  <span class="s">"cell"</span>: <span class="s">"7F3A"</span>,
-  <span class="s">"slot"</span>: <span class="s">"14:10"</span>,
-  <span class="s">"p"</span>: 0.92
-&#125;</pre>
-      <p class="mono small">cell: 500 m square<br>slot: 10 minutes<br>p: calibrated rain probability</p>
-    </div>
-  </div>
-</section>''')
-
-# 9 map ---------------------------------------------------------------
+# 4 map ---------------------------------------------------------------
 grid = [
     [8, 12, 41, 58, 47, 15, 6, None],
     [10, 38, 66, 81, 62, 33, 9, 4],
@@ -280,43 +114,38 @@ for row in grid:
             cells += f'<div class="cell{" rain" if v >= 50 else ""}" style="--v:{v / 100:.2f}">{txt}</div>'
 slides.append(f'''
 <section class="slide">
-  {top("city map, concept", 9)}
+  {top("city map, concept", 4)}
   <h2>One rain map from many phones.</h2>
   <p class="lede">Readings pool into map cells every 10 minutes. More phones, smaller cells: down to a single street.</p>
   <div class="map">{cells}</div>
   <div class="legend map-legend"><span class="scale"><i></i></span><span class="mono">% of phones hearing rain</span><span class="nd"><i></i><span class="mono">under 3 readings</span></span><span><b class="outline"></b><span class="mono">raining</span></span></div>
 </section>''')
 
-# 10 parity ----------------------------------------------------------
-prow = [("band 94–125 Hz", parity[0]), ("band 0.9–1.2 kHz", parity[8]), ("band 6.1–8 kHz", parity[15]),
-        ("spectral flatness", parity[16]), ("RMS level, dB", parity[17]), ("2–8 kHz variability, dB", parity[18])]
-trs = "".join(f'<tr><td>{n}</td><td class="mono">{v:.6f}</td><td class="mono ok">within 1e-6</td></tr>' for n, v in prow)
+# 5 results ---------------------------------------------------------
 slides.append(f'''
 <section class="slide">
-  {top("parity", 10)}
-  <h2>Python trains it. Kotlin runs it. Same numbers.</h2>
-  <p class="lede">Both sides compute the 19 features of the same generated signal and check them against one shared file.</p>
-  <table class="ptable"><thead><tr><th>feature</th><th>Python</th><th>Kotlin</th></tr></thead><tbody>{trs}</tbody></table>
-  <div class="results">
-    <div class="res"><span class="tag">pytest</span><code>runs in CI on every push</code></div>
-    <div class="res"><span class="tag">ParityTest.kt</span><code>runs in CI on every push</code></div>
-  </div>
+  {top("results", 5)}
+  <h2>Tested on public recordings.</h2>
+  <p class="lede">Five-fold cross-validation on the ESC-50 dataset: rain, and 20 everyday sounds often mistaken for it.</p>
+  <ul class="big mid">
+    <li><b>{pct(metrics["clip_accuracy"])}</b><span>of 5-second clips classified correctly</span></li>
+    <li><b>{pct(false_alarms)}</b><span>of non-rain sounds mistaken for rain</span></li>
+    <li><b>{metrics["files"]}</b><span>recordings, each tested on a model that never saw it</span></li>
+  </ul>
 </section>''')
 
-# 11 roadmap -------------------------------------------------------
+# 6 next ------------------------------------------------------------
 slides.append(f'''
 <section class="slide inv">
-  {top("roadmap", 11, True)}
-  <h2>From public recordings to real streets.</h2>
-  <p class="lede">RainSense is open source. The next steps take it into the field.</p>
-  <ol class="next">
-    <li>Field recordings from phones in hands, pockets and under umbrellas</li>
-    <li>A pretrained audio model (YAMNet) benchmarked against these features</li>
+  {top("next", 6, True)}
+  <h2>Next: real streets.</h2>
+  <p class="lede">RainSense is open source.</p>
+  <ol class="next mid">
+    <li>Field tests on real phones</li>
     <li>Rain intensity, calibrated against rain gauges</li>
-    <li>A pilot inside an app people already use outdoors</li>
+    <li>A pilot inside an app people use outdoors</li>
   </ol>
   <p class="cta mono">github.com/akshayjg/RainSense</p>
-  <p class="foot mono">Python training · Kotlin on-device library · trained on ESC-50 (CC BY-NC 3.0)</p>
 </section>''')
 
 CSS = (Path(__file__).parent / "slides.css").read_text()
