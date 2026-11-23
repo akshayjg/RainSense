@@ -48,7 +48,7 @@ data class RainReading(val rainProb: Float, val quality: Float, val timeMs: Long
 **3.2 Trigger.** The host app calls `sample()` when its app is open and the user is probably outside: waiting for a ride, at a transit stop, or a delivery rider between orders. Rate-limit it to at most once every few minutes per device.
 
 **3.3 Gate.** Skip the clip when any of these is true:
-- speed > ~20 km/h (in a vehicle)
+- speed > ~25 km/h (in a vehicle)
 - proximity sensor covered and dark (in a pocket or bag)
 - connected to Wi-Fi (probably indoors)
 - the clip is silent (mic in use by something else)
